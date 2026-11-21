@@ -56,14 +56,9 @@
     "id": "render-distance",
     "name": "Render Distance",
     "flags": {
-      "FRMFinalDistanceMaxStud": "500",
       "FRMFinalDistanceMinStuds": "80"
     },
     "controls": {
-      "FRMFinalDistanceMaxStud": {
-        "label": "Maximum Studs",
-        "type": "integer"
-      },
       "FRMFinalDistanceMinStuds": {
         "label": "Minimum Studs",
         "type": "integer"
@@ -99,45 +94,6 @@
     }
   },
   {
-    "id": "fps-boost",
-    "name": "FPS Boost",
-    "flags": {
-      "DFIntDebugDynamicRenderKiloPixels": "230",
-      "FIntCameraFarZPlane": "250"
-    },
-    "controls": {
-      "DFIntDebugDynamicRenderKiloPixels": {
-        "label": "Render KiloPixels",
-        "type": "dropdown",
-        "options": {
-          "144p": "37",
-          "240p": "77",
-          "360p": "230",
-          "480p": "410",
-          "720p": "922"
-        }
-      }
-    }
-  },
-  {
-    "id": "fps-max",
-    "name": "FPS Max",
-    "flags": {
-      "RenderTextureTotalBudgetCount": "0",
-      "TextureCompositorActiveJobs": "0"
-    },
-    "controls": {}
-  },
-  {
-    "id": "fps-performance",
-    "name": "FPS Performance",
-    "flags": {
-      "DFIntDebugDynamicRenderKiloPixels": "230",
-      "FRMFinalDistanceMaxStud": "250"
-    },
-    "controls": {}
-  },
-  {
     "id": "resolution",
     "name": "Resolution",
     "flags": {
@@ -157,37 +113,5 @@
         }
       }
     }
-  },
-  {
-    "id": "scc-fps",
-    "name": "FPS",
-    "flags": {
-      "DFIntDebugDynamicRenderKiloPixels": "410",
-      "FIntCameraFarZPlane": "300",
-      "FRMFinalDistanceMaxStud": "250",
-      "DFIntS2PhysicsSenderRate": "45"
-    },
-    "controls": {}
-  },
-  {
-    "id": "scc-balanced",
-    "name": "Balanced",
-    "flags": {
-      "DFIntDebugDynamicRenderKiloPixels": "922",
-      "FIntCameraFarZPlane": "300",
-      "DFIntS2PhysicsSenderRate": "45"
-    },
-    "controls": {}
-  },
-  {
-    "id": "scc-quality",
-    "name": "Quality",
-    "flags": {
-      "DFIntDebugDynamicRenderKiloPixels": "2074",
-      "FIntDebugForceMSAASamples": "4",
-      "FIntDebugFRMOptionalMSAALevelOverride": "4",
-      "FIntCameraFarZPlane": "1000"
-    },
-    "controls": {}
   }
 ]
