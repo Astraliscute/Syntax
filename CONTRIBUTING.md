@@ -1,4 +1,4 @@
-# Contributing to RoUtils
+# Contributing to Syntax
 
 Thank you for your interest in contributing to **Syntax**!
 
