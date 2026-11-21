@@ -4736,13 +4736,22 @@ def run_tests():
 
         def test_failed_replace_rolls_back(self):
             replace = syntax.replace_update_file
-            def fail(source, target):
-                if Path(source) == self.pending:
-                    raise OSError('Copy failed')
-                return replace(source, target)
-            with patch.object(syntax, 'replace_update_file', side_effect=fail):
-                self.assertEqual(self.finish(), 1)
-            self.assertEqual(self.target.read_bytes(), self.old)
+            alias = self.pending.parent / '..' / self.pending.parent.name / self.pending.name
+            for pending in (self.pending, alias):
+                with self.subTest(pending=str(pending)):
+                    self.pending.write_bytes(self.new)
+                    launches = []
+                    def fail(source, target):
+                        if Path(source).resolve() == pending.resolve():
+                            raise OSError('Copy failed')
+                        return replace(source, target)
+                    with patch.object(syntax, 'replace_update_file', side_effect=fail) as replaced:
+                        self.assertEqual(self.finish(launch=lambda path: launches.append(path.read_bytes())), 1)
+                    self.assertEqual(replaced.call_count, 3)
+                    self.assertEqual(self.target.read_bytes(), self.old)
+                    self.assertEqual(launches, [self.old])
+                    self.assertFalse(self.backup.exists())
+                    self.assertFalse(self.pending.exists())
 
         def test_failed_restart_rolls_back(self):
             calls = []
