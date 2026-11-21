@@ -1,0 +1,14 @@
+{
+  "CameraFarZPlane": "FInt",
+  "RenderTextureTotalBudgetCount": "FInt",
+  "TextureCompositorActiveJobs": "DFInt",
+  "FRMFinalDistanceMaxStuds": "DFInt",
+  "FRMFinalDistanceMinStuds": "DFInt",
+  "DebugDynamicRenderKiloPixels": "DFInt",
+  "DebugForceMSAASamples": "FInt",
+  "DebugFRMOptionalMSAALevelOverride": "FInt",
+  "DebugFRMQualityLevelOverride": "DFInt",
+  "TaskSchedulerTargetFps": "DFInt",
+  "S2PhysicsSenderRate": "DFInt",
+  "RakNetResendRttMultiple": "DFInt"
+}

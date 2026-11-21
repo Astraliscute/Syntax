@@ -1,0 +1,7 @@
+{
+  "DFIntDebugDynamicRenderKiloPixels": "77",
+  "DFIntTaskSchedulerTargetFps": "60",
+  "FIntDebugForceMSAASamples": "1",
+  "FIntDebugFRMOptionalMSAALevelOverride": "1",
+  "DFIntDebugFRMQualityLevelOverride": "1"
+}

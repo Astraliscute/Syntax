@@ -1,0 +1,1385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="syntax.ico">
+  <title>Syntax v2.0</title>
+  <style>
+    :root {
+      --bg: #16151a;
+      --panel: #1c1b21;
+      --raised: #28252f;
+      --field: #17161c;
+      --line: #35313d;
+      --text: #e6e3eb;
+      --muted: #aaa3b4;
+      --dim: #91899c;
+      --accent: #b09bc9;
+      --accent-light: #d3c4e4;
+      --red: #d78d9c;
+      --amber: #cbb181;
+      --good: #a1bba4;
+      --mono: Consolas, "Cascadia Code", monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      color: var(--text);
+      background: var(--bg);
+      font: 12px/1.45 "Segoe UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; border: 0; }
+    button:disabled { cursor: default; opacity: .45; }
+    button, input, select, textarea { outline: none; }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent) !important; }
+    input::placeholder, textarea::placeholder { color: var(--dim); }
+    svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+    svg.discord-icon { fill: currentColor; stroke: none; }
+    svg.console-icon { fill: currentColor; stroke: none; }
+    svg.console-icon .console-mark { fill: none; stroke: var(--bg); stroke-width: 1.9; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 20px; font-weight: 600; letter-spacing: -.3px; }
+    h2 { font-size: 12px; font-weight: 600; }
+    h3 { font-size: 12px; font-weight: 600; }
+    .muted { color: var(--muted); }
+    .mono { font-family: var(--mono); }
+    .hidden, [hidden] { display: none !important; }
+    #snow { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: .6; }
+    #desktop { position: relative; z-index: 2; height: calc(100% - 29px); }
+    .titlebar { height: 40px; padding: 0 10px 0 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); background: var(--bg); user-select: none; }
+    .titlebrand { display: flex; align-items: center; gap: 9px; font-size: 11px; font-weight: 550; }
+    .titlelogo { width: 21px; height: 21px; object-fit: contain; }
+    .version { color: var(--dim); font-size: 10px; margin-left: 3px; }
+    .window-actions { display: flex; gap: 4px; }
+    .iconbutton { width: 29px; height: 29px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; background: transparent; border-radius: 3px; color: var(--muted); }
+    .iconbutton:hover { color: var(--text); background: var(--raised); }
+    .iconbutton.danger:hover { color: var(--red); background: #f5a3bc12; }
+    .iconbutton svg { width: 14px; height: 14px; }
+    .shell { display: flex; height: calc(100% - 40px); }
+    .sidebar { width: 178px; flex-shrink: 0; padding: 18px 10px 12px; display: flex; flex-direction: column; background: var(--bg); border-right: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 9px; padding: 0 9px 21px; }
+    .brand img { width: 27px; height: 27px; object-fit: contain; }
+    .brand strong { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+    .nav { display: flex; flex-direction: column; gap: 2px; }
+    .navbtn { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border: 1px solid transparent; border-radius: 3px; color: var(--muted); background: transparent; text-align: left; font-size: 11px; }
+    .navbtn:hover { background: #ffffff05; color: var(--text); }
+    .navbtn.active { color: var(--text); background: var(--raised); box-shadow: inset 2px 0 var(--accent); }
+    .navbtn svg { width: 16px; height: 16px; }
+    .navcount { margin-left: auto; color: var(--muted); font: 10px var(--mono); }
+    .sidebottom { margin-top: auto; }
+    .side-divider { height: 1px; background: var(--line); margin: 22px 10px 17px; }
+    .connection { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); margin: 18px 10px 0; padding-top: 17px; color: var(--muted); font-size: 10px; }
+    .dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+    .dot.good { background: var(--good); }
+    .dot.warn { background: var(--amber); }
+    .dot.bad { background: var(--red); }
+    .workspace { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+    .content { min-height: 0; flex: 1; overflow: auto; padding: 21px 22px; scrollbar-gutter: stable; }
+    .page { max-width: 1440px; margin: 0 auto; animation: enter .12s ease; }
+    .pagehead { display: flex; align-items: center; justify-content: space-between; gap: 15px; min-height: 33px; margin-bottom: 17px; }
+    .pagetitle { display: flex; align-items: center; gap: 10px; }
+    .count { padding: 1px 3px; font: 10px var(--mono); color: var(--dim); }
+    .actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .btn { min-height: 30px; padding: 5px 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 3px; background: var(--raised); font-size: 11px; font-weight: 400; white-space: nowrap; }
+    .btn:hover { background: var(--raised); border-color: var(--dim); }
+    .btn svg { width: 13px; height: 13px; }
+    .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+    .btn.primary:hover { background: var(--accent-light); border-color: var(--accent-light); }
+    .btn.ghost { background: transparent; color: var(--muted); }
+    .btn.danger { background: #f5a3bc0a; color: var(--red); border-color: #f5a3bc25; }
+    .btn.small { min-height: 25px; padding: 3px 7px; font-size: 10px; }
+    .manager-grid { display: grid; grid-template-columns: minmax(0, 1fr) 285px; align-items: start; gap: 16px; }
+    .manager-main { min-width: 0; }
+    .quickbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 9px; padding: 10px 12px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); }
+    .quickbar label { color: var(--muted); font-size: 10px; display: flex; align-items: center; gap: 9px; }
+    .quickbar .btn { min-height: 27px; font-size: 10px; padding: 4px 7px; }
+    .select { background: var(--field); border: 1px solid var(--line); border-radius: 3px; padding: 5px 6px; min-height: 27px; font-size: 11px; }
+    .tablepanel, .catalog, .card { border: 1px solid var(--line); border-radius: 4px; background: var(--panel); overflow: hidden; }
+    .tabletoolbar { display: flex; align-items: center; justify-content: space-between; gap: 9px; padding: 13px 14px; border-bottom: 1px solid var(--line); }
+    .tabletitle { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 550; }
+    .search { display: flex; align-items: center; gap: 7px; padding: 6px 8px; min-width: 0; background: var(--field); border: 1px solid var(--line); border-radius: 3px; color: var(--dim); }
+    .search svg { width: 12px; height: 12px; }
+    .search input { width: 100%; min-width: 0; background: transparent; border: 0; font-size: 11px; }
+    .tabletoolbar .search { width: 180px; }
+    .tablefilters { display: flex; align-items: center; gap: 4px; padding: 8px 11px; border-bottom: 1px solid var(--line); }
+    .filter { background: transparent; color: var(--muted); font-size: 10px; padding: 4px 7px; border-radius: 3px; }
+    .filter.active { background: var(--raised); color: var(--text); }
+    .tablewrap { overflow: auto; max-height: calc(100vh - 350px); min-height: 280px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left; }
+    th { font-size: 10px; font-weight: 400; color: var(--muted); padding: 9px; position: sticky; top: 0; z-index: 1; background: var(--panel); border-bottom: 1px solid var(--line); }
+    td { padding: 9px; font-size: 11px; vertical-align: middle; border-top: 1px solid #ffffff06; }
+    tr:hover td { background: #ffffff03; }
+    th:first-child, td:first-child { width: 37px; padding-left: 12px; }
+    th:nth-child(3) { width: 74px; }
+    th:nth-child(4) { width: 95px; }
+    th:nth-child(5) { width: 28px; }
+    th:last-child { width: 30px; }
+    td:last-child { padding: 3px 2px; }
+    .flagname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 10px var(--mono); }
+    .flagprefix { color: var(--dim); }
+    .flagsuffix { color: var(--text); }
+    .typeinput { width: 100%; padding: 4px 1px; border: 0; background: transparent; color: var(--muted); font: 10px var(--mono); }
+    .typeinput.needs-type { color: var(--amber); }
+    .valueinput { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 3px; background: var(--field); font: 11px var(--mono); padding: 5px 6px; }
+    .valueinput:disabled { opacity: .4; }
+    .valueinput.dirty { border-color: var(--amber); }
+    .rowstatus { display: flex; align-items: center; justify-content: center; }
+    .toggle { position: relative; padding: 0; width: 25px; height: 15px; border: 1px solid var(--dim); border-radius: 15px; background: var(--field); flex-shrink: 0; vertical-align: middle; }
+    .toggle:after { position: absolute; content: ""; top: 2px; left: 2px; width: 9px; height: 9px; background: var(--dim); border-radius: 50%; transition: transform .12s, background .12s; }
+    .toggle[aria-checked=true] { border-color: var(--accent); background: var(--raised); }
+    .toggle[aria-checked=true]:after { transform: translateX(10px); background: var(--accent-light); }
+    .toggle.large { width: 30px; height: 18px; }
+    .toggle.large:after { width: 10px; height: 10px; top: 3px; left: 3px; }
+    .toggle.large[aria-checked=true]:after { transform: translateX(12px); }
+    .tablefooter { display: flex; align-items: center; justify-content: space-between; padding: 9px 13px; border-top: 1px solid var(--line); font-size: 9px; color: var(--dim); }
+    .tablefooter span:last-child { display: flex; align-items: center; gap: 4px; }
+    .tablefooter svg { width: 11px; height: 11px; }
+    .empty { padding: 42px 15px; text-align: center; color: var(--muted); }
+    .emptyicon { width: 28px; height: 28px; display: grid; place-items: center; margin: 0 auto 9px; color: var(--dim); }
+    .empty h3 { font-size: 11px; margin-bottom: 15px; }
+    .empty .actions { justify-content: center; }
+    .loadmore { display: block; margin: 13px auto; }
+    .catalog { position: sticky; top: 0; }
+    .catalog-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px 7px; }
+    .catalog-head h2 { font-size: 11px; }
+    .catalog-tools { padding: 0 14px 12px; }
+    .catalog-caption { display: flex; align-items: center; justify-content: space-between; margin: 9px 0 0; font-size: 9px; color: var(--dim); }
+    .sourcebutton { border: 0; background: transparent; color: var(--accent); font-size: 10px; padding: 0; }
+    .catalog-scroll { height: calc(100vh - 272px); min-height: 310px; max-height: 760px; overflow: auto; border-top: 1px solid var(--line); }
+    .catalog-row { display: flex; align-items: center; gap: 9px; height: 48px; padding: 9px 11px; border-bottom: 1px solid #a47bd30d; }
+    .catalog-row:hover { background: #bc8af308; }
+    .catalog-add { width: 26px; height: 25px; display: grid; place-items: center; flex-shrink: 0; border: 1px solid var(--line); border-radius: 3px; background: transparent; color: var(--accent); font: 13px var(--mono); }
+    .catalog-add:hover { background: var(--raised); border-color: var(--dim); }
+    .catalog-add:disabled { color: var(--muted); opacity: .6; }
+    .catalog-add svg { width: 12px; height: 12px; }
+    .catalog-name { min-width: 0; flex: 1; }
+    .catalog-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 10px var(--mono); color: var(--text); }
+    .catalog-name small { display: block; color: var(--dim); font-size: 9px; margin-top: 3px; }
+    .presetgrid { display: grid; grid-template-columns: minmax(0, 1fr); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+    .presetcard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(165px, 230px) 100px; align-items: center; gap: 20px; padding: 15px 17px; border-bottom: 1px solid var(--line); background: var(--panel); min-width: 0; }
+    .presetcard:last-child { border-bottom: 0; }
+    .presetcard.selected { box-shadow: inset 2px 0 var(--accent); }
+    .preset-summary { min-width: 0; }
+    .presethead { display: flex; align-items: center; gap: 10px; margin-bottom: 3px; }
+    .pill { color: var(--dim); font-size: 10px; white-space: nowrap; }
+    .pill.selected { color: var(--good); }
+    .presetcount { color: var(--dim); font-size: 10px; margin: 4px 0 9px; }
+    .presetcontrols { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .controlrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+    .controlrow span { min-width: 0; overflow-wrap: anywhere; }
+    .controlrow .select { min-width: 70px; max-width: 130px; }
+    .controlrow input { max-width: 85px; }
+    .preset-actions { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+    .preset-actions .btn { width: 100%; }
+    .community-card .preset-summary { grid-column: 1 / 3; }
+    .preset-preview { display: flex; flex-direction: column; gap: 3px; min-height: 16px; }
+    .preset-preview small { color: var(--dim); font-size: 9px; }
+    .preset-fflag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 10px var(--mono); padding: 2px 0; }
+    .glow-orange { --warning: #ffb265; --warning-bg: #ff9f3519; }
+    .glow-red { --warning: #ff758e; --warning-bg: #ff476519; }
+    tr.glow-orange td, tr.glow-red td { background: var(--warning-bg); }
+    tr.glow-orange td:first-child, tr.glow-red td:first-child { box-shadow: inset 2px 0 var(--warning); }
+    .glow-orange .flagname, .glow-red .flagname, .preset-fflag.glow-orange, .preset-fflag.glow-red { color: var(--warning); }
+    .glow-orange .flagprefix, .glow-orange .flagsuffix, .glow-red .flagprefix, .glow-red .flagsuffix { color: inherit; }
+    .preset-fflag.glow-orange, .preset-fflag.glow-red { background: var(--warning-bg); border-left: 2px solid var(--warning); padding-left: 5px; }
+    .draft-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+    .draft-add, .draft-row { display: grid; grid-template-columns: minmax(0, 1fr) 115px 55px; gap: 7px; align-items: center; }
+    .draft-add { margin-bottom: 12px; }
+    .draft-row { padding: 7px; border-bottom: 1px solid var(--line); }
+    .draft-row .input { font-size: 10px; padding: 7px; }
+    .draft-row .iconbutton { justify-self: center; }
+    .draft-row.glow-orange, .draft-row.glow-red { background: var(--warning-bg); border-left: 2px solid var(--warning); }
+    .draft-row.glow-orange .input:first-child, .draft-row.glow-red .input:first-child { color: var(--warning); box-shadow: 0 0 9px var(--warning-bg); }
+    .draft-list { max-height: 265px; overflow: auto; border: 1px solid var(--line); border-radius: 3px; min-height: 100px; }
+    .draft-count { margin-top: 8px; font-size: 9px; color: var(--dim); }
+    .preset-modal .modalbody { max-height: calc(100vh - 170px); overflow: auto; }
+    .settingsgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 850px; }
+    .cardhead { display: flex; align-items: center; gap: 8px; padding: 15px 18px; border-bottom: 1px solid var(--line); color: var(--muted); }
+    .cardhead svg { width: 15px; height: 15px; }
+    .cardhead h2 { color: var(--text); font-size: 11px; }
+    .cardbody { padding: 19px; }
+    .settingrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 19px; font-size: 11px; }
+    .settingrow:last-child { margin-bottom: 0; }
+    .hr { height: 1px; margin: 18px 0; background: var(--line); }
+    .update-label { color: var(--dim); font-size: 10px; margin: 15px 0 0; overflow-wrap: anywhere; }
+    .credits-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; max-width: 850px; }
+    .credit { display: flex; align-items: center; gap: 13px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+    .credit:last-child { border: 0; }
+    .credit strong { display: block; font-size: 11px; }
+    .credit small { display: block; color: var(--muted); font-size: 10px; margin-top: 4px; }
+    .about { display: flex; flex-direction: column; align-items: flex-start; padding: 23px; text-align: left; }
+    .about img { width: 38px; height: 38px; margin-bottom: 12px; object-fit: contain; }
+    .about h2 { font-size: 19px; letter-spacing: -.3px; }
+    .about .version { margin: 4px 0 19px; }
+    .logview { min-height: 330px; max-height: calc(100vh - 235px); overflow: auto; background: var(--field); padding: 14px 16px; font: 11px/1.85 var(--mono); }
+    .logline { display: flex; gap: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .logtime { color: var(--dim); flex-shrink: 0; user-select: none; }
+    .logtext { color: var(--muted); }
+    .logtext.good { color: var(--accent-light); }
+    .logtext.bad { color: var(--red); }
+    .modalback { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 30px; background: #0009; }
+    .modal { width: 420px; max-width: 100%; border: 1px solid var(--dim); border-radius: 5px; background: var(--panel); box-shadow: 0 8px 30px #0006; }
+    .modal.wide { width: 640px; }
+    .modalhead { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; border-bottom: 1px solid var(--line); }
+    .modalhead h2 { font-size: 12px; }
+    .modalbody { padding: 19px; }
+    .modalfoot { display: flex; justify-content: flex-end; gap: 7px; padding: 12px 18px; border-top: 1px solid var(--line); }
+    .formfield { margin-bottom: 15px; }
+    .formfield label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 10px; }
+    .input { width: 100%; padding: 8px 9px; border: 1px solid var(--line); border-radius: 3px; background: var(--field); font-size: 11px; }
+    .raweditor { display: block; width: 100%; height: 320px; max-height: 50vh; padding: 12px; resize: vertical; border: 1px solid var(--line); border-radius: 3px; background: var(--field); color: var(--text); font: 11px/1.7 var(--mono); }
+    .formerror { min-height: 17px; margin-top: 8px; color: var(--red); font-size: 10px; }
+    .toasts { position: fixed; right: 22px; bottom: 42px; z-index: 30; display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
+    .toast { max-width: 330px; padding: 9px 12px; border: 1px solid var(--dim); border-radius: 3px; background: var(--raised); color: var(--text); font-size: 11px; animation: enter .12s ease; }
+    .toast.error { color: var(--red); border-color: var(--red); }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    @keyframes enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    body.no-motion *, body.no-motion *:before, body.no-motion *:after { animation: none !important; transition: none !important; }
+    .startup-screen { height: calc(100% - 40px); display: grid; place-items: center; padding: 28px; }
+    .startup-panel { width: 330px; max-width: 100%; }
+    .startup-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 25px; }
+    .startup-logo { width: 56px; height: 56px; object-fit: contain; }
+    .startup-brand h1 { font-size: 22px; }
+    .startup-brand .version { margin-left: 0; }
+    .startup-message { color: var(--text); font-size: 12px; min-height: 20px; margin-bottom: 11px; }
+    .startup-progress { display: block; width: 100%; height: 4px; border: 0; border-radius: 2px; overflow: hidden; background: var(--line); accent-color: var(--accent); }
+    .startup-progress::-webkit-progress-bar { background: var(--line); }
+    .startup-progress::-webkit-progress-value { background: var(--accent); }
+    .startup-steps { list-style: none; margin: 18px 0; padding: 0; }
+    .startup-steps li { display: flex; align-items: center; gap: 9px; padding: 5px 0; font-size: 11px; color: var(--dim); }
+    .startup-steps li[data-status="active"] { color: var(--text); }
+    .startup-steps li[data-status="done"] { color: var(--muted); }
+    .startup-steps li[data-status="done"] .dot { background: var(--good); }
+    .startup-steps li[data-status="active"] .dot { background: var(--accent); }
+    .startup-steps li[data-status="warn"] { color: var(--amber); }
+    .startup-steps li[data-status="warn"] .dot { background: var(--amber); }
+    .startup-detail { min-height: 18px; margin-top: 13px; font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
+    .startup-actions { justify-content: flex-end; margin-top: 16px; }
+    body[data-theme="dark"] { --bg:#111113; --panel:#19191c; --raised:#29292e; --field:#131315; --accent:#bfc0c5; --accent-light:#ededf0; --muted:#b0b0b6; --dim:#8e8e98; --line:#36363d; --text:#e7e7eb; }
+    body[data-theme="midnight"] { --bg:#14171c; --panel:#1a1e25; --raised:#262d38; --field:#15191f; --accent:#a3b3cb; --accent-light:#d1dce9; --muted:#a0a9b8; --dim:#7c8899; --line:#323b47; --text:#e4e9f0; }
+    body[data-theme="ocean"] { --bg:#121b1f; --panel:#18242a; --raised:#24333c; --field:#141e23; --accent:#8ab7c7; --accent-light:#c1dce5; --muted:#9eafb7; --dim:#79939f; --line:#30424c; --text:#e0ebef; }
+    body[data-theme="forest"] { --bg:#151c18; --panel:#1b2720; --raised:#29372e; --field:#17201a; --accent:#a0bea6; --accent-light:#d0e1d3; --muted:#a0b0a5; --dim:#7c9384; --line:#34463a; --text:#e1eae3; }
+    body[data-theme="rose"] { --bg:#1d161b; --panel:#291e25; --raised:#392b34; --field:#21181e; --accent:#c5a0b2; --accent-light:#e5cbd7; --muted:#b6a1ab; --dim:#9a808c; --line:#483540; --text:#efe2e8; }
+    body[data-theme="amber"] { --bg:#1d1a14; --panel:#27231b; --raised:#383026; --field:#211d16; --accent:#c6b08b; --accent-light:#e7d8bc; --muted:#b3a897; --dim:#968871; --line:#463d30; --text:#ede7dc; }
+    @media (max-width: 1120px) {
+      .sidebar { width: 166px; padding-left: 9px; padding-right: 9px; }
+      .brand { gap: 8px; padding-left: 6px; }
+      .brand strong { font-size: 17px; }
+      .brand img { width: 25px; height: 25px; }
+      .content { padding: 22px 18px; }
+      .manager-grid { grid-template-columns: minmax(0, 1fr) 245px; gap: 12px; }
+      .tabletoolbar .search { width: 145px; }
+      th:nth-child(3) { width: 62px; }
+      th:nth-child(4) { width: 78px; }
+      .presetcard { grid-template-columns: minmax(0, 1fr) 175px 95px; gap: 13px; padding: 13px; }
+      .quickbar { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="snow" aria-hidden="true"></canvas>
+  <div id="desktop" aria-busy="true">
+    <div class="titlebar pywebview-drag-region">
+      <div class="titlebrand"><img class="titlelogo" src="syntax.ico" alt="">Syntax<span class="version">v2.0</span></div>
+      <div class="window-actions">
+        <button class="iconbutton" data-action="minimize" aria-label="Minimize"><span data-icon="minus"></span></button>
+        <button class="iconbutton danger" data-action="close" aria-label="Close"><span data-icon="close"></span></button>
+      </div>
+    </div>
+    <section class="startup-screen" id="startup-screen" aria-label="Starting Syntax">
+      <div class="startup-panel">
+        <div class="startup-brand"><img class="startup-logo" src="syntax.ico" alt="Syntax logo"><div><h1>Syntax</h1><span class="version">v2.0</span></div></div>
+        <p class="startup-message" id="startup-message" role="status" aria-live="polite">Connecting to desktop</p>
+        <progress class="startup-progress" id="startup-progress" max="4" aria-label="Startup progress"></progress>
+        <ol class="startup-steps" aria-label="Startup checks">
+          <li data-startup-step="0"><span class="dot"></span>Local presets</li>
+          <li data-startup-step="1"><span class="dot"></span>Windows integration</li>
+          <li data-startup-step="2"><span class="dot"></span>Update check</li>
+          <li data-startup-step="3"><span class="dot"></span>Background services</li>
+        </ol>
+        <p class="startup-detail" id="startup-detail"></p>
+        <div class="actions startup-actions hidden" id="startup-actions">
+          <button class="btn hidden" id="startup-retry" data-action="startup-retry">Retry connection</button>
+          <button class="btn hidden" id="startup-check" data-action="startup-check">Check again</button>
+          <button class="btn primary hidden" id="startup-update" data-action="startup-update">Update now</button>
+          <button class="btn hidden" id="startup-continue" data-action="startup-continue">Continue</button>
+        </div>
+      </div>
+    </section>
+    <div class="shell" id="workspace-shell" hidden inert aria-hidden="true">
+      <aside class="sidebar">
+        <div class="brand"><img src="syntax.ico" alt="Syntax logo"><strong>Syntax</strong></div>
+        <nav class="nav" aria-label="Main navigation">
+          <button class="navbtn active" data-page="flags"><span data-icon="sliders"></span>FFlags<span class="navcount" id="nav-count">0</span></button>
+          <button class="navbtn" data-page="presets"><span data-icon="bookmark"></span>Saved Presets</button>
+          <button class="navbtn" data-page="scc"><span data-icon="grid"></span>Presets</button>
+          <button class="navbtn" data-page="community"><span data-icon="community"></span>Community FFlags</button>
+          <button class="navbtn" data-page="logs"><span data-icon="console"></span>Console</button>
+        </nav>
+        <div class="sidebottom">
+          <div class="side-divider"></div>
+          <nav class="nav" aria-label="Application navigation">
+            <button class="navbtn" data-page="settings"><span data-icon="settings"></span>Settings</button>
+            <button class="navbtn" data-page="credits"><span data-icon="heart"></span>Credits</button>
+            <button class="navbtn" data-action="discord"><span data-icon="discord"></span>Discord</button>
+          </nav>
+          <div class="connection"><span class="dot" id="side-dot"></span><span id="side-status">Waiting for Roblox</span></div>
+        </div>
+      </aside>
+      <div class="workspace"><main class="content" id="content"></main></div>
+    </div>
+  </div>
+  <div class="modalback hidden" id="modal-back" role="presentation">
+    <section class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"></section>
+  </div>
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <script>
+(() => {
+  'use strict';
+
+  class Snowfall {
+    constructor(canvas) {
+      this.canvas = canvas;
+      this.ctx = canvas.getContext('2d', { alpha: true });
+      this.enabled = true;
+      this.wind = 0;
+      this.targetWind = 0;
+      this.particles = [];
+      this.banks = new Float32Array(1);
+      this.width = this.height = 1;
+      this.frame = 0;
+      this.lastTime = 0;
+      this.drawTime = 0;
+      this.lastPointer = null;
+      this.tick = this.tick.bind(this);
+      window.addEventListener('resize', () => this.resize(), { passive: true });
+      window.addEventListener('pointermove', event => {
+        const position = event.clientX / this.width * 2 - 1;
+        const movement = this.lastPointer === null ? 0 : event.clientX - this.lastPointer;
+        this.targetWind = Math.max(-1.7, Math.min(1.7, position * 1.1 + movement * .025));
+        this.lastPointer = event.clientX;
+      }, { passive: true });
+      document.addEventListener('pointerleave', () => {
+        this.targetWind = 0;
+        this.lastPointer = null;
+      });
+      document.addEventListener('visibilitychange', () => {
+        cancelAnimationFrame(this.frame);
+        this.frame = 0;
+        if (!document.hidden && this.enabled) this.start();
+      });
+      this.resize();
+      if (this.ctx) this.start();
+    }
+
+    particle(initial = false) {
+      return {
+        x: Math.random() * this.width,
+        y: initial ? Math.random() * this.height : -10 - Math.random() * 40,
+        radius: .55 + Math.random() ** 2 * 1.9,
+        speed: 26 + Math.random() * 57,
+        opacity: .22 + Math.random() * .59,
+        phase: Math.random() * Math.PI * 2,
+        sway: 2 + Math.random() * 10,
+      };
+    }
+
+    resize() {
+      const oldWidth = this.width, oldHeight = this.height, oldBanks = this.banks;
+      this.width = window.innerWidth;
+      this.height = window.innerHeight;
+      this.ratio = Math.min(window.devicePixelRatio || 1, 1.25);
+      this.canvas.width = Math.round(this.width * this.ratio);
+      this.canvas.height = Math.round(this.height * this.ratio);
+      this.canvas.style.width = this.width + 'px';
+      this.canvas.style.height = this.height + 'px';
+      this.ctx?.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
+      this.banks = new Float32Array(Math.ceil(this.width / 6) + 2);
+      for (let i = 0; i < this.banks.length; i++) {
+        this.banks[i] = oldBanks[Math.min(oldBanks.length - 1, Math.floor(i / this.banks.length * oldBanks.length))] || 0;
+      }
+      for (const particle of this.particles) {
+        particle.x *= this.width / oldWidth;
+        particle.y *= this.height / oldHeight;
+      }
+      const count = Math.round(Math.max(100, Math.min(220, this.width * this.height / 5200)));
+      while (this.particles.length < count) this.particles.push(this.particle(true));
+      this.particles.length = count;
+    }
+
+    setEnabled(enabled) {
+      if (this.enabled === enabled) return;
+      this.enabled = enabled;
+      cancelAnimationFrame(this.frame);
+      this.frame = 0;
+      if (enabled && !document.hidden) this.start();
+      else this.ctx?.clearRect(0, 0, this.width, this.height);
+    }
+
+    start() {
+      if (this.frame || !this.ctx) return;
+      this.lastTime = 0;
+      this.drawTime = 0;
+      this.frame = requestAnimationFrame(this.tick);
+    }
+
+    surface(index) {
+      return 6 + Math.sin(index * .16) * 1.5 + Math.sin(index * .043) * 2.6 + this.banks[index];
+    }
+
+    settle(x, radius) {
+      const center = Math.min(this.banks.length - 1, Math.max(0, Math.floor(x / 6)));
+      for (let offset = -3; offset <= 3; offset++) {
+        const index = center + offset;
+        if (index >= 0 && index < this.banks.length) {
+          this.banks[index] = Math.min(18, this.banks[index] + radius * .34 * (1 - Math.abs(offset) / 4));
+        }
+      }
+    }
+
+    tick(time) {
+      if (!this.enabled || document.hidden) { this.frame = 0; return; }
+      this.frame = requestAnimationFrame(this.tick);
+      if (this.drawTime && time - this.drawTime < 32) return;
+      const dt = this.lastTime ? Math.min((time - this.lastTime) / 1000, .06) : .025;
+      this.lastTime = this.drawTime = time;
+      this.wind += (this.targetWind - this.wind) * Math.min(1, dt * 4.5);
+      const ctx = this.ctx;
+      ctx.clearRect(0, 0, this.width, this.height);
+      for (const particle of this.particles) {
+        particle.phase += dt * .8;
+        const vx = this.wind * (29 + particle.speed * .55) + Math.sin(particle.phase) * particle.sway;
+        particle.x += vx * dt;
+        particle.y += particle.speed * dt;
+        if (particle.x < -15) particle.x = this.width + 10;
+        if (particle.x > this.width + 15) particle.x = -10;
+        const bank = Math.min(this.banks.length - 1, Math.max(0, Math.floor(particle.x / 6)));
+        if (particle.y >= this.height - this.surface(bank)) {
+          this.settle(particle.x, particle.radius);
+          Object.assign(particle, this.particle());
+        }
+        ctx.fillStyle = `rgba(242,230,255,${particle.opacity})`;
+        ctx.beginPath();
+        ctx.ellipse(particle.x, particle.y, particle.radius * .7,
+                    particle.radius * (1.35 + Math.abs(this.wind) * .45),
+                    -Math.atan2(vx, particle.speed), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const fill = ctx.createLinearGradient(0, this.height - 30, 0, this.height);
+      fill.addColorStop(0, 'rgba(247,236,255,.93)');
+      fill.addColorStop(.5, 'rgba(224,199,248,.85)');
+      fill.addColorStop(1, 'rgba(154,107,194,.5)');
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(0, this.height);
+      ctx.lineTo(0, this.height - this.surface(0));
+      for (let i = 1; i < this.banks.length - 1; i++) {
+        const x = i * 6, y = this.height - this.surface(i);
+        const nextY = this.height - this.surface(i + 1);
+        ctx.quadraticCurveTo(x, y, x + 3, (y + nextY) / 2);
+        this.banks[i] *= .999985;
+      }
+      ctx.lineTo(this.width, this.height);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  window.snowfall = new Snowfall(document.getElementById('snow'));
+})();
+
+</script>
+  <script>
+'use strict';
+
+window.syntaxLogos = {};
+const themeNames = ['purple', 'dark', 'midnight', 'ocean', 'forest', 'rose', 'amber'];
+
+const paths = {
+  minus: 'M5 12h14', close: 'm6 6 12 12M18 6 6 18', plus: 'M12 5v14M5 12h14',
+  sliders: 'M4 7h6m4 0h6M4 17h10m4 0h2M10 4v6m4 4v6',
+  grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+  bookmark: 'M6 3h12v18l-6-4-6 4V3z',
+  console: 'M7 8.5 10.5 12 7 15.5M13.5 15.5H18',
+  settings: 'm9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3H9zm3 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
+  heart: 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0l-1 1-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z',
+  community: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8m6 10v-2a4 4 0 0 0-3-3.87M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
+  discord: 'M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z',
+  upload: 'M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5',
+  download: 'M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4',
+  code: 'm8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18',
+  search: 'M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
+  trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',
+  check: 'm5 12 4 4L19 6',
+  flag: 'M5 21V3m0 0c4-3 7 3 14 0v10c-7 3-10-3-14 0',
+  monitor: 'M3 4h18v13H3zM8 21h8m-4-4v4',
+  refresh: 'M20 7V2l-3 3A8 8 0 1 0 3 16m17-9h-5M4 17v5l3-3a8 8 0 0 0 14-11M4 17h5',
+  layers: 'm12 3 10 5-10 5L2 8l10-5zm-9 10 9 5 9-5M3 18l9 5 9-5',
+  bolt: 'm13 2-9 12h7l-1 8 10-13h-7l0-7',
+};
+const icon = name => {
+  const kind = name === 'discord' ? 'discord-icon' : name === 'console' ? 'console-icon' : '';
+  const shape = name === 'console' ? `<rect x="2" y="4" width="20" height="16" rx="4"/><path class="console-mark" d="${paths.console}"/>` : `<path d="${paths[name] || paths.flag}"/>`;
+  return `<svg viewBox="0 0 24 24"${kind ? ` class="${kind}"` : ''} aria-hidden="true">${shape}</svg>`;
+};
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const button = (label, action, image = '', style = '') => `<button class="btn ${style}" data-action="${action}">${image ? icon(image) : ''}${label}</button>`;
+const titles = { flags: 'FFlags', presets: 'Saved Presets', scc: 'Presets', community: 'Community FFlags', logs: 'Console', settings: 'Settings', credits: 'Credits' };
+const stateNames = { waiting: 'Waiting for Roblox', settling: 'Waiting for Roblox startup', pending: 'Click Apply', paused: 'Lock FFlags paused', applying: 'Applying FFlags', ready: 'Roblox ready', connecting: 'Connecting', active: 'Roblox connected', partial: 'Review FFlags', error: 'Connection error', unsupported: 'Windows required' };
+const rowNames = { applied: 'Applied', missing: 'Offset unavailable', failed: 'Not applied', disabled: 'Disabled', waiting: 'Pending', unknown: 'Choose type', unsupported: 'Live string replacement unsupported' };
+const typeNames = { bool: 'Bool', int: 'Int', float: 'Float', string: 'String', log: 'Log', unknown: 'Type' };
+const updateNames = { unconfigured: '', checking: 'Checking', available: 'Update available', current: 'Up to date', no_release: 'Release unavailable', missing_asset: 'Syntax.exe missing', downloading: 'Downloading Syntax.exe', preparing: 'Preparing update', restarting: 'Restarting Syntax', error: 'Update failed' };
+const app = {
+  page: 'flags', rows: [], presets: [], revision: -1, status: { state: 'waiting', flags: {} },
+  settings: { rpc: true, motion: true, snow: true, theme: 'purple', tray: true, startup: true, offset_source: 'theo', LockF: true }, update: { state: 'unconfigured' },
+  logs: [], logId: 0, query: '', filter: 'all', limit: 100,
+  loaded: false, ready: false, startupDelayed: false, startupState: { state: 'connecting', message: 'Connecting to desktop', completed: 0, total: 4 }, polling: null, modal: null, returnFocus: null,
+  presetRevision: -1, libraryCatalogRevision: -1, catalogRevision: -1, draft: null, community: [], dump: {}, configs: {}, windowActive: true, rowsPending: false,
+  catalog: { items: [], count: 0, total: 0, page: 0, more: false, query: '', loading: false, loaded: false, error: '', serial: 0, sourceRevision: -1 },
+};
+const content = document.getElementById('content');
+let catalogTimer;
+let draftTimer;
+let draftSerial = 0;
+let draftValidation = null;
+let draftValidationPending = false;
+let pollTimer;
+let startupTimer;
+let flagSearchTimer;
+let preferenceQueue = Promise.resolve();
+let pendingPreferences = {};
+const DRAFT_ROW_LIMIT = 200;
+
+function icons(root = document) {
+  root.querySelectorAll('[data-icon]').forEach(element => { element.innerHTML = icon(element.dataset.icon); });
+}
+
+function toast(message, error = false) {
+  const toasts = document.getElementById('toasts');
+  while (toasts.children.length >= 5) toasts.firstElementChild.remove();
+  const node = document.createElement('div');
+  node.className = 'toast' + (error ? ' error' : '');
+  node.textContent = message;
+  toasts.append(node);
+  setTimeout(() => node.remove(), 3600);
+}
+
+async function api(method, ...args) {
+  const bridge = window.pywebview?.api;
+  if (!bridge?.[method]) return { ok: false, error: 'Desktop connection unavailable' };
+  try { return await bridge[method](...args); }
+  catch { return { ok: false, error: 'Operation failed' }; }
+}
+
+async function act(method, args = [], message = '') {
+  const result = await api(method, ...args);
+  if (result?.ok) {
+    if (message) toast(message);
+    await poll(true);
+  } else if (!result?.cancelled) toast(result?.error || 'Operation failed', true);
+  return result;
+}
+
+function head(title, actions = '', count = '') {
+  return `<div class="pagehead"><div class="pagetitle"><h1>${esc(title)}</h1>${count !== '' ? `<span class="count">${count}</span>` : ''}</div><div class="actions">${actions}</div></div>`;
+}
+
+function switchPage(page) {
+  if (!titles[page]) return;
+  app.page = page;
+  document.querySelectorAll('.navbtn[data-page]').forEach(element => {
+    element.classList.toggle('active', element.dataset.page === page);
+    element.setAttribute('aria-current', element.dataset.page === page ? 'page' : 'false');
+  });
+  render();
+  if (page === 'presets' || page === 'scc') refreshPresets();
+  if (page === 'community') refreshCommunity();
+  content.scrollTop = 0;
+}
+
+function render() {
+  const pages = { flags: flagsPage, presets: presetsPage, scc: presetsPage, community: communityPage, settings: settingsPage, credits: creditsPage, logs: logsPage };
+  content.innerHTML = `<div class="page">${pages[app.page]()}</div>`;
+  if (app.page === 'flags') {
+    renderRows();
+    renderCatalog();
+    if (app.loaded && app.ready && !app.catalog.loaded && !app.catalog.loading && !app.catalog.error) fetchCatalog();
+    document.getElementById('catalog-scroll').addEventListener('scroll', event => {
+      const element = event.target;
+      if (element.scrollHeight - element.scrollTop - element.clientHeight < 90 && app.catalog.more && !app.catalog.loading) fetchCatalog(false, true);
+      const start = Math.max(0, Math.floor(element.scrollTop / 48) - 8);
+      if (start !== app.catalog.renderedStart) renderCatalog();
+    }, { passive: true });
+  }
+  if (app.page === 'logs') renderLogs();
+  updateStatus();
+  updateJobs();
+  updateEffects();
+}
+
+function flagsPage() {
+  return head('FFlags', button('Apply', 'apply', 'check', 'primary') + button('Import', 'import', 'upload') + button('Add FFlag', 'add', 'plus'), app.rows.length) + `
+    <div class="manager-grid">
+      <div class="manager-main">
+        <div class="quickbar">
+          <label>${icon('monitor')}Resolution<select class="select" id="quick-resolution" aria-label="Resolution">
+            <option value="">Select</option><option value="37">144p</option><option value="77">240p</option>
+            <option value="230">360p</option><option value="410">480p</option><option value="922">720p</option><option value="2074">1080p</option>
+          </select></label>
+          <div class="actions"><label>Lock FFlags<button class="toggle" role="switch" aria-label="Lock FFlags" aria-checked="${app.settings.LockF !== false}" data-preference="LockF"></button></label><button class="btn ghost" data-quick="fps-boost">${icon('bolt')}FPS Boost</button><button class="btn ghost" data-quick="remove-textures">${icon('layers')}No Textures</button></div>
+        </div>
+        <section class="tablepanel">
+          <div class="tabletoolbar"><div class="tabletitle">FFlags <span class="count" id="table-count">0</span>${button('Debloat', 'debloat', 'bolt', 'small ghost')}${button('Add prefixes', 'prefixes', '', 'small ghost')}</div>
+            <label class="search">${icon('search')}<input id="flag-search" type="search" placeholder="Search FFlags" aria-label="Search FFlags" value="${esc(app.query)}"></label>
+          </div>
+          <div class="tablefilters">
+            <button class="filter ${app.filter === 'all' ? 'active' : ''}" data-filter="all">All</button>
+            <button class="filter ${app.filter === 'active' ? 'active' : ''}" data-filter="active">Active</button>
+            <button class="filter ${app.filter === 'issues' ? 'active' : ''}" data-filter="issues">Issues</button>
+            <div class="actions" style="margin-left:auto">${button('JSON', 'raw', 'code', 'small ghost')}${button('Export', 'export', 'download', 'small ghost')}
+              <button class="iconbutton danger" data-action="clear" aria-label="Clear FFlags" title="Clear FFlags">${icon('trash')}</button>
+            </div>
+          </div>
+          <div class="tablewrap"><table aria-label="FFlags"><thead><tr><th>On</th><th>FFlag</th><th>Type</th><th>Value</th><th></th><th></th></tr></thead><tbody id="flag-rows"></tbody></table>
+            <div id="flags-empty"></div><button class="btn ghost loadmore hidden" id="load-more" data-action="more">Load more</button>
+          </div>
+          <div class="tablefooter"><span id="visible-count">0 FFlags</span><span>Saved</span></div>
+        </section>
+      </div>
+      <aside class="catalog" aria-label="Browse FFlags">
+        <div class="catalog-head"><h2>Browse FFlags</h2><button class="iconbutton" data-action="catalog-refresh" aria-label="Refresh FFlags">${icon('refresh')}</button></div>
+        <div class="catalog-tools"><label class="search">${icon('search')}<input id="catalog-search" type="search" placeholder="Search all FFlags" aria-label="Search all FFlags" value="${esc(app.catalog.query)}"></label>
+          <div class="catalog-caption"><span id="catalog-count">FFlags</span><button class="sourcebutton" id="catalog-source-label" data-action="catalog-source">${esc(app.settings.offset_source)}</button></div>
+        </div>
+        <div class="catalog-scroll" id="catalog-scroll"><div id="catalog-rows"></div><button class="btn ghost loadmore hidden" id="catalog-more" data-action="catalog-more">Load more</button></div>
+      </aside>
+    </div>`;
+}
+
+function filteredRows() {
+  return app.rows.filter(row => (!app.query || row.name.toLowerCase().includes(app.query.toLowerCase())) &&
+    (app.filter === 'all' || app.filter === 'active' && app.status.flags[row.name] === 'applied' ||
+      app.filter === 'issues' && (row.duplicate || row.missing || row.needs_type || ['missing', 'failed', 'unsupported'].includes(app.status.flags[row.name]))));
+}
+
+function warningClass(row) {
+  return row.duplicate ? 'glow-red' : row.missing === true ? 'glow-orange' : '';
+}
+
+function renderRows() {
+  const body = document.getElementById('flag-rows');
+  if (!body) return;
+  const filtered = filteredRows(), rows = filtered.slice(0, app.limit);
+  body.innerHTML = rows.map(row => `<tr data-row="${esc(row.id)}" class="${warningClass(row)}">
+    <td><button class="toggle" role="switch" aria-checked="${!!row.enabled}" aria-label="${esc(row.name)}" data-toggle="${esc(row.id)}" ${row.needs_type ? 'disabled title="Choose type"' : ''}></button></td>
+    <td><div class="flagname" title="${esc(row.name)}"><span class="flagprefix">${esc(row.prefix)}</span><span class="flagsuffix">${esc(row.suffix)}</span></div></td>
+    <td><select class="typeinput ${row.needs_type ? 'needs-type' : ''}" data-type="${esc(row.id)}" aria-label="${esc(row.name)} type">
+      ${row.needs_type ? '<option value="unknown" selected disabled>Type</option>' : ''}
+      ${Object.entries(typeNames).filter(([type]) => type !== 'unknown').map(([type, label]) => `<option value="${type}" ${row.type === type ? 'selected' : ''}>${label}</option>`).join('')}
+    </select></td>
+    <td>${row.type === 'bool' ? `<select class="valueinput" data-value="${esc(row.id)}" aria-label="${esc(row.name)} value"><option value="true" ${['true', '1', 'yes'].includes(row.value.toLowerCase()) ? 'selected' : ''}>true</option><option value="false" ${['false', '0', 'no'].includes(row.value.toLowerCase()) ? 'selected' : ''}>false</option></select>` :
+      `<input class="valueinput" data-value="${esc(row.id)}" aria-label="${esc(row.name)} value" value="${esc(row.value)}" inputmode="${row.type === 'string' ? 'text' : 'decimal'}" spellcheck="false" ${row.needs_type ? 'disabled' : ''}>`}</td>
+    <td><span class="rowstatus" data-rowstatus="${esc(row.id)}"></span></td>
+    <td><button class="iconbutton danger" data-delete="${esc(row.id)}" aria-label="Delete ${esc(row.name)}">${icon('trash')}</button></td>
+  </tr>`).join('');
+  document.getElementById('table-count').textContent = app.rows.length;
+  document.getElementById('visible-count').textContent = `${rows.length} / ${filtered.length} FFlags`;
+  document.getElementById('load-more').classList.toggle('hidden', rows.length >= filtered.length);
+  document.getElementById('flags-empty').innerHTML = filtered.length ? '' : `<div class="empty"><div class="emptyicon">${icon(app.rows.length ? 'search' : 'flag')}</div><h3>${app.rows.length ? 'No results' : 'No FFlags'}</h3>${app.rows.length ? '' : `<div class="actions">${button('Import JSON', 'import', 'upload')}${button('Add FFlag', 'add', 'plus', 'primary')}</div>`}</div>`;
+  updateRowStatus();
+}
+
+function updateRowStatus() {
+  const rows = new Map(app.rows.map(row => [row.id, row]));
+  document.querySelectorAll('[data-rowstatus]').forEach(element => {
+    const row = rows.get(element.dataset.rowstatus);
+    const state = row?.duplicate ? 'duplicate' : row?.missing ? 'missing' : row?.needs_type ? 'unknown' : row && !row.enabled ? 'disabled' : app.status.flags[row?.name] || 'waiting';
+    const tone = state === 'applied' ? 'good' : ['missing', 'unknown'].includes(state) ? 'warn' : ['failed', 'duplicate'].includes(state) ? 'bad' : '';
+      element.title = state === 'duplicate' ? 'Duplicate FFlag' : rowNames[state] || state;
+    element.setAttribute('aria-label', element.title);
+    if (element.dataset.state !== state) {
+      element.innerHTML = `<span class="dot ${tone}"></span>`;
+      element.dataset.state = state;
+    }
+  });
+}
+
+function updateStatus() {
+  const state = app.status.state;
+  const tone = ['active', 'ready'].includes(state) ? 'good' : ['partial', 'paused', 'pending'].includes(state) ? 'warn' : state === 'error' ? 'bad' : '';
+  document.getElementById('side-status').textContent = stateNames[state] || 'Waiting for Roblox';
+  document.getElementById('side-status').title = app.status.error || '';
+  const apply = document.querySelector('[data-action="apply"]');
+  if (apply) apply.disabled = ['connecting', 'applying'].includes(state);
+  const LockF = document.querySelector('[data-preference="LockF"]');
+  if (LockF) LockF.setAttribute('aria-checked', String(app.settings.LockF !== false));
+  document.getElementById('side-dot').className = 'dot ' + tone;
+  document.getElementById('nav-count').textContent = app.rows.length;
+  updateRowStatus();
+  updateRelease();
+}
+
+async function fetchCatalog(force = false, append = false) {
+  const catalog = app.catalog, serial = ++catalog.serial;
+  catalog.loading = true;
+  catalog.error = '';
+  const page = append ? catalog.page + 1 : 0;
+  renderCatalog();
+  const result = await api('get_catalog', catalog.query, page, 60, force);
+  if (serial !== catalog.serial) return;
+  catalog.loading = false;
+  if (result.ok) {
+    Object.assign(catalog, { items: append ? catalog.items.concat(result.items) : result.items,
+      count: result.count, total: result.total, page: result.page, more: result.more, loaded: true, sourceRevision: result.revision });
+  } else {
+    catalog.error = result.error;
+    if (!append) catalog.items = [];
+  }
+  renderCatalog();
+  if (result.ok) await poll(true);
+}
+
+function renderCatalog() {
+  const list = document.getElementById('catalog-rows');
+  if (!list) return;
+  const catalog = app.catalog, existing = new Set(app.rows.map(row => row.suffix));
+  document.getElementById('catalog-count').textContent = catalog.count ? `${catalog.count.toLocaleString('en-US')} FFlags` : 'FFlags';
+  if (catalog.items.length) {
+    const scroll = document.getElementById('catalog-scroll');
+    const start = Math.max(0, Math.min(catalog.items.length - 1, Math.floor(scroll.scrollTop / 48) - 8));
+    const end = Math.min(catalog.items.length, start + Math.ceil(scroll.clientHeight / 48) + 16);
+    catalog.renderedStart = start;
+    list.innerHTML = `<div aria-hidden="true" style="height:${start * 48}px"></div>` + catalog.items.slice(start, end).map(entry => {
+      const added = existing.has(entry.clean);
+      return `<div class="catalog-row"><button class="catalog-add" data-catalog-add="${esc(entry.name)}" aria-label="${added ? 'Added' : 'Add'} ${esc(entry.full_name)}" ${added ? 'disabled' : ''}>${icon(added ? 'check' : 'plus')}</button><div class="catalog-name"><strong title="${esc(entry.full_name)}">${esc(entry.full_name)}</strong><small>${added ? 'Added' : entry.type === 'unknown' ? 'Choose type' : typeNames[entry.type]}</small></div></div>`;
+    }).join('') + `<div aria-hidden="true" style="height:${(catalog.items.length - end) * 48}px"></div>`;
+  } else {
+    const label = catalog.loading ? 'Loading FFlags' : catalog.error ? 'FFlags unavailable' : catalog.loaded ? 'No results' : 'Open desktop app';
+    list.innerHTML = `<div class="empty"><div class="emptyicon">${icon('search')}</div><h3>${label}</h3>${catalog.error ? button('Retry', 'catalog-refresh', 'refresh') : ''}</div>`;
+  }
+  const more = document.getElementById('catalog-more');
+  more.classList.toggle('hidden', !catalog.more || !!catalog.error);
+  more.disabled = catalog.loading;
+  more.textContent = catalog.loading ? 'Loading' : 'Load more';
+}
+
+function presetsPage() {
+  const items = app.presets.filter(preset => app.page === 'scc' ? preset.builtin === true : preset.builtin === false);
+  const enabled = new Map(app.rows.filter(row => row.enabled).map(row => [row.name, row.value]));
+  const toolbar = app.page === 'presets' ? button('Debloat', 'debloat-presets', 'bolt') + button('New preset', 'new-preset', 'plus', 'primary') : '';
+  return head(titles[app.page], toolbar, items.length) + `<div class="presetgrid">${items.map(preset => {
+    const rows = preset.rows || [];
+    const selected = rows.length > 0 && rows.every(entry => enabled.get(entry.name) === entry.value);
+    return `<article class="presetcard ${selected ? 'selected' : ''}" data-preset="${esc(preset.id)}">
+      <div class="preset-summary"><div class="presethead"><h3>${esc(preset.name)}</h3>${selected ? '<span class="pill selected">In use</span>' : ''}</div>
+        <div class="presetcount">${rows.length} FFlags${preset.missing ? ` · ${preset.missing} unavailable` : ''}${preset.duplicates ? ` · ${preset.duplicates} duplicates` : ''}</div>
+        <div class="preset-preview">${rows.slice(0, 5).map(row => `<div class="preset-fflag ${warningClass(row)}" title="${esc(row.name)}">${esc(row.name)}</div>`).join('')}${rows.length > 5 ? `<small>+${rows.length - 5} FFlags</small>` : ''}</div>
+      </div>
+      <div class="presetcontrols">${Object.entries(preset.controls).filter(([name]) => name in preset.flags).map(([name, control]) => {
+        let input = '';
+        if (control.type === 'dropdown') input = `<select class="select" data-control="${esc(name)}" aria-label="${esc(control.label || name)}">${Object.entries(control.options || {}).map(([label, value]) => `<option value="${esc(value)}" ${String(value) === String(preset.flags[name]) ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select>`;
+        else if (control.type === 'integer') input = `<input class="valueinput" data-control="${esc(name)}" aria-label="${esc(control.label || name)}" value="${esc(preset.flags[name])}" inputmode="numeric">`;
+        return input ? `<label class="controlrow"><span>${esc(control.label || name)}</span>${input}</label>` : '';
+      }).join('')}</div>
+      <div class="preset-actions"><button class="btn ${selected ? '' : 'primary'}" data-apply="${esc(preset.id)}" ${rows.length ? '' : 'disabled'}>${icon(selected ? 'check' : 'plus')}${selected ? 'Apply again' : 'Apply'}</button><button class="btn ghost" data-preset-debloat="${esc(preset.id)}">${icon('bolt')}Debloat</button></div>
+    </article>`;
+  }).join('') || '<div class="empty">No presets</div>'}</div>`;
+}
+
+function settingsPage() {
+  const toggle = (key, label) => `<div class="settingrow"><span>${label}</span><button class="toggle large" role="switch" aria-label="${label}" aria-checked="${app.settings[key]}" data-preference="${key}"></button></div>`;
+  return head('Settings') + `<div class="settingsgrid">
+    <section class="card"><div class="cardhead">${icon('settings')}<h2>Appearance</h2></div><div class="cardbody">${toggle('snow', 'Snowfall')}${toggle('motion', 'Animations')}${toggle('rpc', 'Discord Presence')}
+      <label class="settingrow"><span>Color theme</span><select class="select" id="theme-select">${themeNames.map(theme => `<option value="${theme}" ${app.settings.theme === theme ? 'selected' : ''}>${theme[0].toUpperCase() + theme.slice(1)}</option>`).join('')}</select></label>
+    </div></section>
+    <section class="card"><div class="cardhead">${icon('refresh')}<h2>Updates</h2></div><div class="cardbody"><div class="settingrow"><span class="muted">Version</span><span class="mono">v2.0</span></div>
+      <div class="actions">${button('Check updates', 'updates', 'refresh')}<button class="btn primary hidden" id="update-install" data-action="update-install">Update now</button><button class="btn hidden" id="release-open" data-action="release">Open release</button></div><div class="update-label" id="release-status"></div>
+      <div class="hr"></div><div class="actions">${button('Refresh configs', 'configs-refresh', 'refresh')}</div><div class="update-label" id="configs-status"></div>
+    </div></section>
+    <section class="card"><div class="cardhead">${icon('flag')}<h2>Offsets</h2></div><div class="cardbody">
+      <label class="settingrow"><span>Source</span><select class="select" id="offset-source"><option value="theo" ${app.settings.offset_source === 'theo' ? 'selected' : ''}>theo (default)</option><option value="local" ${app.settings.offset_source === 'local' ? 'selected' : ''}>Local dump</option></select></label>
+      <div class="actions">${button('Dump offsets', 'dump-offsets', 'download')}${button('Cancel', 'dump-cancel')}${button('Refresh', 'sync', 'refresh')}</div>
+      <p class="update-label" id="dump-status"></p><p class="update-label">Dumps stay in %LOCALAPPDATA%\\Syntax\\offsets. Select Local dump to use your own offsets.</p>
+      <div class="hr"></div>${button('Check FFlags', 'validate', 'check')}
+    </div></section>
+    <section class="card"><div class="cardhead">${icon('monitor')}<h2>Windows</h2></div><div class="cardbody">${toggle('tray', 'Minimize to tray')}${toggle('startup', 'Run at startup')}
+    </div></section>
+  </div>`;
+}
+
+function communityPage() {
+  return head('Community FFlags', button('Refresh packs', 'configs-refresh', 'refresh'), app.community.length) + `<div class="presetgrid">${app.community.map(pack => `<article class="presetcard community-card">
+    <div class="preset-summary"><div class="presethead"><h3>${esc(pack.name)}</h3><span class="pill">${pack.rows.length} FFlags</span></div>
+      <div class="preset-preview">${pack.rows.slice(0, 5).map(row => `<div class="preset-fflag ${warningClass(row)}" title="${esc(row.name)}">${esc(row.name)}</div>`).join('')}${pack.rows.length > 5 ? `<small>+${pack.rows.length - 5} FFlags</small>` : ''}</div>
+    </div><div class="preset-actions"><button class="btn primary" data-community="${esc(pack.id)}">Apply pack</button></div></article>`).join('')}</div><p class="update-label" id="configs-status"></p>`;
+}
+
+async function refreshCommunity() {
+  const result = await api('get_community');
+  if (!result.ok) return;
+  app.community = result.items;
+  app.presetRevision = result.revision;
+  app.libraryCatalogRevision = result.catalog_revision;
+  if (app.page === 'community') render();
+}
+
+function updateJobs() {
+  const dump = document.getElementById('dump-status');
+  if (dump) {
+    dump.textContent = (app.dump.message || 'Ready') + (app.dump.count ? ` · ${app.dump.count} offsets` : '');
+    dump.title = app.dump.path || '';
+    document.querySelector('[data-action="dump-offsets"]').disabled = app.dump.state === 'running';
+    document.querySelector('[data-action="dump-cancel"]').disabled = app.dump.state !== 'running';
+  }
+  const configs = document.getElementById('configs-status');
+  if (configs) configs.textContent = ({ github: 'Astraliscute/Syntax · up to date', loading: 'Updating repository configs…', offline: 'Using bundled or cached configs', bundled: 'Bundled configs ready' })[app.configs.state] || '';
+}
+
+function updateStartup() {
+  if (app.ready) return;
+  const startup = app.startupState;
+  const screen = document.getElementById('startup-screen');
+  const shell = document.getElementById('workspace-shell');
+  if (startup.state === 'ready') {
+    app.ready = true;
+    clearTimeout(startupTimer);
+    screen.hidden = true;
+    shell.hidden = false;
+    shell.inert = false;
+    shell.removeAttribute('inert');
+    shell.setAttribute('aria-hidden', 'false');
+    document.getElementById('desktop').setAttribute('aria-busy', 'false');
+    render();
+    refreshPresets();
+    if (screen.contains(document.activeElement)) document.querySelector('.navbtn.active')?.focus();
+    return;
+  }
+  const update = app.update;
+  const busy = ['downloading', 'preparing', 'restarting'].includes(update.state);
+  const choice = startup.state === 'update_available';
+  const retry = app.startupDelayed && startup.state === 'connecting';
+  const canContinue = (choice || app.startupDelayed) && !busy && !retry;
+  const message = busy ? updateNames[update.state] : choice ? updateNames[update.state] || startup.message : startup.message;
+  const label = document.getElementById('startup-message');
+  if (label.textContent !== message) label.textContent = message || 'Starting Syntax';
+  const progress = document.getElementById('startup-progress');
+  progress.max = busy && update.state === 'downloading' && update.size ? update.size : startup.total || 4;
+  progress.value = busy && update.state === 'downloading' ? update.received || 0 : startup.completed || 0;
+  document.querySelectorAll('[data-startup-step]').forEach(step => {
+    const index = Number(step.dataset.startupStep);
+    let status = index < startup.completed ? 'done' : index === startup.completed && !choice ? 'active' : 'pending';
+    if (index === 2 && ['timeout', 'error', 'missing_asset', 'no_release'].includes(startup.update_state)) status = 'warn';
+    step.dataset.status = status;
+  });
+  const details = busy && update.state === 'downloading' && update.size ? `${Math.min(100, Math.floor((update.received || 0) * 100 / update.size))}% · Syntax.exe` :
+    choice ? update.error || `${update.latest || ''} · Syntax.exe` :
+    app.startupDelayed ? 'Taking longer than expected' : '';
+  const detail = document.getElementById('startup-detail');
+  if (detail.textContent !== details) detail.textContent = details;
+  document.getElementById('startup-actions').classList.toggle('hidden', !choice && !app.startupDelayed);
+  document.getElementById('startup-update').classList.toggle('hidden', !choice || update.state !== 'available' || update.asset !== 'Syntax.exe' || !update.download);
+  document.getElementById('startup-check').classList.toggle('hidden', !choice || busy || update.state === 'available');
+  document.getElementById('startup-check').disabled = update.state === 'checking';
+  document.getElementById('startup-continue').classList.toggle('hidden', !canContinue);
+  document.getElementById('startup-retry').classList.toggle('hidden', !retry);
+}
+
+function updateRelease() {
+  const element = document.getElementById('release-status');
+  if (!element) return;
+  const update = app.update;
+  const busy = ['downloading', 'preparing', 'restarting'].includes(update.state);
+  const progress = update.state === 'downloading' && update.size ? ` ${Math.min(100, Math.floor((update.received || 0) * 100 / update.size))}%` : '';
+  element.textContent = (update.error || updateNames[update.state] || '') + progress + (update.latest ? ` · ${update.latest}` : '');
+  const install = document.getElementById('update-install');
+  install.classList.toggle('hidden', update.state !== 'available' || update.asset !== 'Syntax.exe' || !update.download);
+  install.disabled = busy;
+  document.getElementById('release-open').classList.toggle('hidden', !update.url || busy);
+  document.querySelector('[data-action="updates"]').disabled = busy || update.state === 'checking';
+}
+
+function creditsPage() {
+  return head('Credits') + `<div class="credits-grid"><section class="card"><div class="cardhead">${icon('heart')}<h2>Contributors</h2></div><div class="cardbody" style="padding-top:0;padding-bottom:0">
+    <div class="credit"><div><strong>wjl7 <span class="muted">/ ASTRAL</span></strong><small>Main application</small></div></div>
+    <div class="credit"><div><strong>offp001</strong><small>Protection, performance, UI</small></div></div>
+    <div class="credit"><div><strong>Syscall</strong><small>Local Dumper</small></div></div>
+    </div></section><section class="card about"><img src="${document.querySelector('.brand img').src}" alt="Syntax logo"><h2>Syntax</h2><span class="version">v2.0</span>${button('Discord', 'discord', 'discord')}</section></div>`;
+}
+
+function logsPage() {
+  return head('Console', button('Copy', 'copy-logs', 'code') + button('Clear', 'clear-logs', 'trash')) + '<section class="card"><div class="logview" id="logview" role="log" aria-label="Console output" aria-live="polite"></div></section>';
+}
+
+function logCaption(text) {
+  return text.replace(/^\[[^\]]+\]\s*/, '');
+}
+
+function renderLogs() {
+  const view = document.getElementById('logview');
+  if (!view) return;
+  const bottom = view.scrollHeight - view.scrollTop - view.clientHeight < 35;
+  view.innerHTML = app.logs.length ? app.logs.map(entry => `<div class="logline"><span class="logtime">${esc(entry.time)}</span><span class="logtext ${entry.text.startsWith('[!]') ? 'bad' : entry.text.startsWith('[+]') ? 'good' : ''}">${esc(logCaption(entry.text))}</span></div>`).join('') : '<span class="muted">Console is empty</span>';
+  if (bottom) view.scrollTop = view.scrollHeight;
+}
+
+function showModal(title, body, confirm, label = 'Save', wide = false, danger = false) {
+  app.returnFocus = document.activeElement;
+  app.modal = confirm;
+  const modal = document.getElementById('modal');
+  modal.className = 'modal' + (wide ? ' wide' : '');
+  modal.innerHTML = `<div class="modalhead"><h2 id="modal-title">${title}</h2><button class="iconbutton" data-action="modal-close" aria-label="Close">${icon('close')}</button></div><div class="modalbody">${body}<div class="formerror" id="modal-error" role="alert"></div></div><div class="modalfoot">${button('Cancel', 'modal-close')}${button(label, 'modal-save', danger ? 'trash' : 'check', danger ? 'danger' : 'primary')}</div>`;
+  document.getElementById('modal-back').classList.remove('hidden');
+  setTimeout(() => modal.querySelector('input,textarea,button[data-action="modal-save"]')?.focus(), 20);
+}
+
+function closeModal() {
+  document.getElementById('modal-back').classList.add('hidden');
+  app.modal = null;
+  app.draft = null;
+  draftSerial++;
+  clearTimeout(draftTimer);
+  app.returnFocus?.focus();
+}
+
+async function saveModal() {
+  if (!app.modal) return;
+  const confirm = app.modal;
+  const element = document.querySelector('[data-action="modal-save"]');
+  if (!element || element.disabled) return;
+  element.disabled = true;
+  try {
+    const result = await confirm();
+    if (app.modal !== confirm) return;
+    if (result?.ok) { closeModal(); await poll(true); }
+    else if (result?.error) document.getElementById('modal-error').textContent = result.error;
+  } catch { if (app.modal === confirm) draftError('Operation failed'); }
+  finally { element.disabled = false; }
+}
+
+function addModal() {
+  showModal('Add FFlag', `<div class="formfield"><label for="new-name">FFlag name</label><input class="input mono" id="new-name" placeholder="DFInt…" spellcheck="false" maxlength="160"></div><div class="formfield"><label for="new-value">Value</label><input class="input mono" id="new-value" placeholder="Value" spellcheck="false"></div>`, () => api('add_flag', document.getElementById('new-name').value, document.getElementById('new-value').value), 'Add');
+}
+
+async function rawModal() {
+  const result = await api('get_raw_flags');
+  if (!result.ok) return toast(result.error, true);
+  showModal('FFlag JSON', `<textarea class="raweditor" id="raw-editor" aria-label="FFlag JSON" spellcheck="false">${esc(result.content)}</textarea>`, () => api('set_raw_flags', document.getElementById('raw-editor').value), 'Save', true);
+}
+
+async function refreshPresets() {
+  const result = await api('get_presets');
+  if (!result.ok) return;
+  app.presets = result.items;
+  app.presetRevision = result.revision;
+  app.libraryCatalogRevision = result.catalog_revision;
+  if (app.page === 'presets' || app.page === 'scc') render();
+}
+
+function draftContent() {
+  return app.draft.mode === 'json' ? document.getElementById('preset-json').value : JSON.stringify(app.draft.rows);
+}
+
+function draftError(message = '') {
+  const element = document.getElementById('modal-error');
+  if (element) element.textContent = message;
+}
+
+function renderDraftEditor() {
+  const draft = app.draft, editor = document.getElementById('preset-editor');
+  if (!draft || !editor) return;
+  if (draft.mode === 'rows' && draft.rows.length > DRAFT_ROW_LIMIT) {
+    draft.mode = 'json';
+    draft.json = JSON.stringify(draft.rows, null, 2);
+  }
+  document.querySelectorAll('[data-draft-mode]').forEach(button => button.classList.toggle('active', button.dataset.draftMode === draft.mode));
+  if (draft.mode === 'json') {
+    editor.innerHTML = `<textarea class="raweditor" id="preset-json" aria-label="Preset JSON" spellcheck="false">${esc(draft.json)}</textarea>`;
+    return;
+  }
+  editor.innerHTML = `<div class="draft-add"><input class="input mono" id="draft-new-name" aria-label="New FFlag name" placeholder="FFlag name" maxlength="160"><input class="input mono" id="draft-new-value" aria-label="New FFlag value" placeholder="Value">${button('Add', 'draft-add', 'plus')}</div>
+    <div class="draft-list">${draft.rows.map((row, index) => `<div class="draft-row ${warningClass(row)}" data-draft-row="${row.id}"><input class="input mono" data-draft-index="${index}" data-draft-field="name" aria-label="FFlag name ${index + 1}" value="${esc(row.name)}"><input class="input mono" data-draft-index="${index}" data-draft-field="value" aria-label="FFlag value ${index + 1}" value="${esc(row.value)}"><button class="iconbutton danger" data-draft-delete="${index}" aria-label="Delete FFlag ${index + 1}">${icon('trash')}</button></div>`).join('') || '<div class="empty"><h3>No FFlags</h3></div>'}</div><div class="draft-count">${draft.rows.length} FFlags</div>`;
+}
+
+async function validateDraft() {
+  if (!app.draft) return;
+  if (draftValidation) { draftValidationPending = true; return draftValidation; }
+  const draft = app.draft, serial = ++draftSerial;
+  draftValidation = (async () => {
+    const result = await api('inspect_flags', draftContent());
+    if (serial !== draftSerial || app.draft !== draft) return;
+    if (!result.ok) return draftError(result.error);
+    draftError();
+    if (draft.mode === 'rows') {
+      draft.rows = result.rows;
+      const rows = new Map(result.rows.map(row => [row.id, row]));
+      document.querySelectorAll('[data-draft-row]').forEach(element => {
+        const row = rows.get(element.dataset.draftRow);
+        element.className = 'draft-row ' + (row ? warningClass(row) : '');
+      });
+    }
+  })();
+  try { await draftValidation; }
+  finally {
+    draftValidation = null;
+    if (draftValidationPending) {
+      draftValidationPending = false;
+      if (app.draft) { clearTimeout(draftTimer); draftTimer = setTimeout(validateDraft, 0); }
+    }
+  }
+}
+
+async function setDraftMode(mode) {
+  if (!app.draft || app.draft.mode === mode) return;
+  const draft = app.draft, serial = ++draftSerial;
+  const content = draftContent();
+  if (mode === 'rows') {
+    const result = await api('inspect_flags', content);
+    if (app.draft !== draft || serial !== draftSerial) return;
+    if (!result.ok) return draftError(result.error);
+    if (result.rows.length > DRAFT_ROW_LIMIT) return draftError(`Use JSON for more than ${DRAFT_ROW_LIMIT} FFlags`);
+    app.draft.rows = result.rows;
+  } else app.draft.json = JSON.stringify(app.draft.rows.map(row => ({ name: row.name, value: row.value, enabled: row.enabled })), null, 2);
+  app.draft.mode = mode;
+  draftSerial++;
+  draftError();
+  renderDraftEditor();
+}
+
+async function addDraftRow() {
+  const draft = app.draft, serial = ++draftSerial;
+  if (!draft || draft.mode !== 'rows') return;
+  if (draft.rows.length >= DRAFT_ROW_LIMIT) return draftError(`Use JSON for more than ${DRAFT_ROW_LIMIT} FFlags`);
+  const name = document.getElementById('draft-new-name').value;
+  const value = document.getElementById('draft-new-value').value;
+  const result = await api('inspect_flags', JSON.stringify([...app.draft.rows, { name, value }]));
+  if (app.draft !== draft || serial !== draftSerial) return;
+  if (!result.ok) return draftError(result.error);
+  app.draft.rows = result.rows;
+  draftSerial++;
+  draftError();
+  renderDraftEditor();
+  document.getElementById('draft-new-name').focus();
+}
+
+async function debloatDraft() {
+  const draft = app.draft, serial = ++draftSerial;
+  if (!draft) return;
+  const result = await api('debloat_draft', draftContent());
+  if (app.draft !== draft || serial !== draftSerial) return;
+  if (!result.ok) return draftError(result.error);
+  app.draft.rows = result.rows;
+  app.draft.json = JSON.stringify(result.rows.map(row => ({ name: row.name, value: row.value, enabled: row.enabled })), null, 2);
+  draftSerial++;
+  draftError();
+  renderDraftEditor();
+  toast(`Removed ${result.removed} FFlags`);
+}
+
+function newPresetModal() {
+  app.draft = { rows: [], mode: 'rows', json: '{}' };
+  showModal('New preset', `<div class="formfield"><label for="preset-name">Preset name</label><input class="input" id="preset-name" placeholder="Preset name" maxlength="60"></div><div class="draft-toolbar"><div class="actions"><button class="filter active" data-draft-mode="rows">FFlags</button><button class="filter" data-draft-mode="json">JSON</button></div>${button('Debloat', 'draft-debloat', 'bolt', 'small ghost')}</div><div id="preset-editor"></div>`, async () => {
+    const result = await api('save_preset', document.getElementById('preset-name').value, draftContent());
+    if (result.ok) { await refreshPresets(); toast('Preset saved'); }
+    return result;
+  }, 'Save preset', true);
+  document.getElementById('modal').classList.add('preset-modal');
+  renderDraftEditor();
+}
+
+async function poll(force = false) {
+  if (app.polling) { await app.polling; if (force) return poll(); return; }
+  if (!window.pywebview?.api) return;
+  app.polling = (async () => {
+    try {
+      const data = await api('get_state', app.logId, app.revision, app.catalogRevision, app.status.revision ?? -1);
+      if (!data?.ok) return;
+      const changed = app.revision !== data.revision || app.catalogRevision !== data.catalog_revision, previousStatus = JSON.stringify(app.status.flags);
+      if (app.catalogRevision !== data.catalog_revision && app.catalog.sourceRevision !== data.catalog_revision) {
+        Object.assign(app.catalog, { items: [], loaded: false, loading: false, error: '', page: 0, more: false, count: 0 });
+        app.catalog.serial++;
+      }
+      const presetsChanged = app.presetRevision !== data.preset_revision || app.libraryCatalogRevision !== data.catalog_revision;
+      if (data.rows) app.rows = data.rows;
+      if (data.status) app.status = data.status;
+      Object.assign(app, { settings: data.settings, update: data.update, revision: data.revision, dump: data.dump || {}, configs: data.configs || {}, windowActive: data.window_active !== false });
+      app.startupState = data.startup || { state: 'ready' };
+      app.catalogRevision = data.catalog_revision;
+      document.body.classList.toggle('no-motion', !app.settings.motion);
+      updateEffects();
+      if (data.logs?.length) {
+        app.logs.push(...data.logs);
+        app.logs = app.logs.slice(-400);
+        app.logId = data.logs[data.logs.length - 1].id;
+        renderLogs();
+      }
+      if (changed && app.page === 'flags') app.rowsPending = true;
+      const editing = content.contains(document.activeElement) && document.activeElement.matches('input[data-value],select[data-value],select[data-type]');
+      if (app.ready && app.rowsPending && app.page === 'flags' && !editing) { renderRows(); renderCatalog(); app.rowsPending = false; }
+      else if (app.ready && app.page === 'flags' && app.filter !== 'all' && previousStatus !== JSON.stringify(app.status.flags) && !content.contains(document.activeElement)) renderRows();
+      if (app.ready && presetsChanged && ['presets', 'scc'].includes(app.page)) await refreshPresets();
+      if (app.ready && presetsChanged && app.page === 'community') await refreshCommunity();
+      updateStatus();
+      updateJobs();
+      updateStartup();
+      if (app.ready && app.page === 'flags' && app.loaded && !app.catalog.loaded && !app.catalog.loading && !app.catalog.error) fetchCatalog();
+    } finally { app.polling = null; }
+  })();
+  return app.polling;
+}
+
+async function init() {
+  if (app.loaded) return;
+  app.loaded = true;
+  await poll();
+  schedulePoll();
+}
+
+function updateEffects() {
+  document.body.classList.toggle('no-motion', !app.settings.motion);
+  if (app.settings.theme && app.settings.theme !== 'purple') document.body.dataset.theme = app.settings.theme;
+  else delete document.body.dataset.theme;
+  const theme = themeNames.includes(app.settings.theme) ? app.settings.theme : 'purple';
+  const logo = window.syntaxLogos[theme];
+  if (logo) {
+    document.querySelectorAll('.titlelogo, .brand img, .about img, .startup-logo').forEach(image => {
+      if (image.src !== logo) image.src = logo;
+      image.dataset.logoTheme = theme;
+    });
+    const favicon = document.querySelector('link[rel="icon"]');
+    if (favicon && favicon.href !== logo) favicon.href = logo;
+  }
+  window.snowfall?.setEnabled(app.ready && app.settings.snow && app.settings.motion && app.windowActive && !document.hidden && document.hasFocus());
+}
+
+function schedulePoll() {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(async () => {
+    try { await poll(); } finally { schedulePoll(); }
+  }, !app.ready ? document.hidden || !app.windowActive ? 1000 : 300 : document.hidden || !app.windowActive ? 4000 : 1000);
+}
+
+window.syntaxWindowActive = active => { app.windowActive = !!active; updateEffects(); if (active) poll(); };
+window.addEventListener('focus', updateEffects);
+window.addEventListener('blur', updateEffects);
+document.addEventListener('visibilitychange', updateEffects);
+
+function savePreferences(patch) {
+  pendingPreferences = { ...pendingPreferences, ...patch };
+  const operation = preferenceQueue.then(async () => {
+    const next = { ...app.settings, ...patch };
+    const result = await act('save_preferences', [next.rpc, next.motion, next.snow, next.theme, next.tray, next.startup, next.LockF !== false]);
+    if (result.ok) { app.settings = next; updateEffects(); }
+    for (const [key, value] of Object.entries(patch)) {
+      if (pendingPreferences[key] === value) delete pendingPreferences[key];
+    }
+    return result;
+  });
+  preferenceQueue = operation.catch(() => {});
+  return operation;
+}
+
+const actions = {
+  'startup-continue': () => act('complete_startup'),
+  'startup-update': () => act('install_update'),
+  'startup-check': () => act('check_updates'),
+  'startup-retry': async () => { await poll(true); updateStartup(); },
+  apply: () => act('apply_flags', [], 'Apply queued'),
+  minimize: () => api('minimize_window'), close: () => api('close_window'), discord: () => api('open_discord'),
+  import: () => act('load_flags', [], 'JSON imported'), export: () => act('export_flags', [], 'JSON exported'),
+  add: addModal, raw: rawModal, 'modal-close': closeModal, 'modal-save': saveModal,
+  'new-preset': newPresetModal, 'draft-add': addDraftRow, 'draft-debloat': debloatDraft,
+  debloat: async () => { const result = await act('debloat_flags'); if (result.ok) toast(`Removed ${result.removed} FFlags`); },
+  'debloat-presets': async () => { const result = await act('debloat_presets'); if (result.ok) { await refreshPresets(); toast(`Removed ${result.removed} FFlags`); } },
+  clear: () => showModal('Clear all FFlags?', `<span class="muted">${app.rows.length} FFlags</span>`, () => api('clear_flags'), 'Clear', false, true),
+  more: () => { app.limit += 100; renderRows(); },
+  'catalog-refresh': () => fetchCatalog(true), 'catalog-more': () => fetchCatalog(false, true),
+  'catalog-source': () => api('open_catalog_source'),
+  prefixes: async () => { const result = await act('add_prefixes'); if (result.ok) toast(`${result.changed} prefixes added · ${result.unresolved} need a type`); },
+  'configs-refresh': () => act('refresh_configs'),
+  'dump-offsets': () => act('dump_offsets'), 'dump-cancel': () => act('cancel_dump'),
+  updates: () => act('check_updates'), release: () => act('open_release'),
+  'update-install': () => act('install_update'),
+  sync: async () => { const result = await act('sync_offsets'); if (result.ok) { toast('Offsets refreshed'); fetchCatalog(); } },
+  validate: async () => { const result = await act('validate_flags'); if (result.ok) toast(result.missing.length ? `${result.missing.length} unavailable FFlags` : 'FFlags checked', !!result.missing.length); },
+  'clear-logs': () => { app.logs = []; renderLogs(); },
+  'copy-logs': async () => {
+    try { await navigator.clipboard.writeText(app.logs.map(entry => entry.time + ' ' + entry.text).join('\n')); toast('Console copied'); }
+    catch { toast('Clipboard unavailable', true); }
+  },
+};
+
+document.addEventListener('click', async event => {
+  const element = event.target.closest('button');
+  if (!element || element.disabled) return;
+  if (!app.ready && !['minimize', 'close', 'startup-continue', 'startup-update', 'startup-check', 'startup-retry'].includes(element.dataset.action)) return;
+  if (element.dataset.page) return switchPage(element.dataset.page);
+  if (element.dataset.draftMode) return setDraftMode(element.dataset.draftMode);
+  if (element.dataset.draftDelete !== undefined) {
+    app.draft.rows.splice(Number(element.dataset.draftDelete), 1);
+    draftSerial++;
+    renderDraftEditor();
+    return validateDraft();
+  }
+  if (element.dataset.presetDebloat) {
+    const result = await act('debloat_presets', [element.dataset.presetDebloat]);
+    if (result.ok) { await refreshPresets(); toast(`Removed ${result.removed} FFlags`); }
+    return;
+  }
+  if (element.dataset.action) {
+    const action = actions[element.dataset.action];
+    if (!action) return;
+    if (['modal-save', 'modal-close'].includes(element.dataset.action)) return action();
+    element.disabled = true;
+    try { await action(); } finally { element.disabled = false; }
+    return;
+  }
+  if (element.dataset.filter) {
+    app.filter = element.dataset.filter;
+    app.limit = 100;
+    document.querySelectorAll('[data-filter]').forEach(filter => filter.classList.toggle('active', filter === element));
+    return renderRows();
+  }
+  if (element.dataset.community) {
+    element.disabled = true;
+    try { return await act('apply_community', [element.dataset.community], 'Community pack applied'); }
+    finally { element.disabled = false; }
+  }
+  if (element.dataset.toggle) {
+    element.disabled = true;
+    try { return await act('toggle_flag', [element.dataset.toggle, element.getAttribute('aria-checked') !== 'true']); }
+    finally { element.disabled = false; }
+  }
+  if (element.dataset.delete) return act('delete_flag', [element.dataset.delete]);
+  if (element.dataset.preference) {
+    const key = element.dataset.preference;
+    const next = !(pendingPreferences[key] ?? app.settings[key]);
+    element.disabled = true;
+    try {
+      const result = await savePreferences({ [key]: next });
+      if (result.ok) element.setAttribute('aria-checked', String(next));
+    } finally { element.disabled = false; }
+    return;
+  }
+  if (element.dataset.catalogAdd) {
+    element.disabled = true;
+    const result = await act('add_catalog_flag', [element.dataset.catalogAdd]);
+    if (result.ok) {
+      app.query = ''; app.filter = 'all';
+      document.getElementById('flag-search').value = '';
+      renderRows(); renderCatalog();
+      const pending = app.rows.find(row => row.needs_type && row.name === element.dataset.catalogAdd);
+      if (pending) [...document.querySelectorAll('[data-type]')].find(select => select.dataset.type === pending.id)?.focus();
+    } else element.disabled = false;
+    return;
+  }
+  const identifier = element.dataset.apply || element.dataset.quick;
+  if (identifier) {
+    const overrides = {};
+    element.closest('[data-preset]')?.querySelectorAll('[data-control]').forEach(input => { overrides[input.dataset.control] = input.value; });
+    element.disabled = true;
+    try { await act('apply_preset', [identifier, overrides], 'Preset applied'); }
+    finally { element.disabled = false; }
+  }
+});
+
+document.addEventListener('change', async event => {
+  const element = event.target;
+  if (element.id === 'theme-select') {
+    element.disabled = true;
+    try {
+      const result = await savePreferences({ theme: element.value });
+      if (!result.ok) element.value = app.settings.theme;
+    } finally { element.disabled = false; }
+    return;
+  }
+  if (element.id === 'offset-source') {
+    const result = await act('select_offset_source', [element.value]);
+    if (!result.ok) element.value = app.settings.offset_source;
+    return;
+  }
+  if (element.dataset.value) {
+    element.disabled = true;
+    try {
+      const result = await act('edit_flag', [element.dataset.value, element.value]);
+      if (!result.ok) element.value = app.rows.find(row => row.id === element.dataset.value)?.value || '';
+      element.classList.remove('dirty');
+    } finally { element.disabled = false; }
+  }
+  if (element.dataset.type) {
+    element.disabled = true;
+    try { const result = await act('set_flag_type', [element.dataset.type, element.value]); if (!result.ok) renderRows(); }
+    finally { element.disabled = false; }
+  }
+  if (element.id === 'quick-resolution' && element.value) await act('add_flag', ['DFIntDebugDynamicRenderKiloPixels', element.value], 'Resolution saved');
+});
+
+document.addEventListener('input', event => {
+  const element = event.target;
+  if (element.id === 'flag-search') { app.query = element.value; app.limit = 100; clearTimeout(flagSearchTimer); flagSearchTimer = setTimeout(renderRows, 100); }
+  if (element.matches('input[data-value]')) element.classList.add('dirty');
+  if (element.dataset.draftField) {
+    draftSerial++;
+    app.draft.rows[Number(element.dataset.draftIndex)][element.dataset.draftField] = element.value;
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(validateDraft, 170);
+  }
+  if (element.id === 'preset-json') {
+    draftSerial++;
+    app.draft.json = element.value;
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(validateDraft, 170);
+  }
+  if (element.id === 'catalog-search') {
+    app.catalog.query = element.value;
+    app.catalog.serial++;
+    clearTimeout(catalogTimer);
+    catalogTimer = setTimeout(() => fetchCatalog(), 160);
+  }
+});
+
+document.addEventListener('keydown', event => {
+  if (!app.ready) {
+    if ((event.ctrlKey || event.metaKey) && ['o', 'k'].includes(event.key.toLowerCase())) event.preventDefault();
+    return;
+  }
+  if (app.modal) {
+    if (event.key === 'Escape') { event.preventDefault(); closeModal(); }
+    if (event.key === 'Enter' && event.target.tagName === 'INPUT') {
+      event.preventDefault();
+      if (['draft-new-name', 'draft-new-value'].includes(event.target.id)) addDraftRow();
+      else if (!event.target.dataset.draftField) saveModal();
+    }
+    if (event.key === 'Tab') {
+      const elements = [...document.getElementById('modal').querySelectorAll('button,input,textarea,select')].filter(element => !element.disabled);
+      const first = elements[0], last = elements[elements.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+    return;
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    if (app.page !== 'flags') switchPage('flags');
+    document.getElementById('flag-search')?.focus();
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') { event.preventDefault(); actions.import(); }
+  if (event.key === 'Enter' && event.target.matches('input[data-value]')) event.target.blur();
+});
+
+document.getElementById('modal-back').addEventListener('click', event => { if (event.target.id === 'modal-back') closeModal(); });
+icons();
+render();
+window.addEventListener('pywebviewready', init);
+startupTimer = setTimeout(() => { if (!app.ready) { app.startupDelayed = true; updateStartup(); } }, 20000);
+init();
+
+</script>
+</body>
+</html>

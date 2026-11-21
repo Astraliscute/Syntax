@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "presets": "configs/presets.json",
+  "packs": [
+    {"id": "fps", "name": "FPS", "description": "Lower rendering resolution and a moderate frame cap.", "file": "configs/community/fps.json"},
+    {"id": "potato", "name": "Potato", "description": "Very low rendering resolution and graphics quality for limited hardware.", "file": "configs/community/potato.json"},
+    {"id": "ping", "name": "Ping / Balanced Network", "description": "Conservative network rates. Actual latency depends on your connection and the server.", "file": "configs/community/ping.json"}
+  ]
+}

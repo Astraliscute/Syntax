@@ -1,0 +1,7 @@
+pywebview>=5.4,<7
+requests>=2.31.0,<3
+pypresence>=4.3.0,<5
+pymem>=1.14.0,<2; sys_platform == "win32"
+pyinstaller>=6.0.0
+pystray>=0.19.5,<1; sys_platform == "win32"
+Pillow>=10.4,<14

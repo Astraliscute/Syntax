@@ -1,0 +1,193 @@
+[
+  {
+    "id": "black-box",
+    "name": "Black Box",
+    "flags": {
+      "FIntCameraFarZPlane": "250"
+    },
+    "controls": {
+      "FIntCameraFarZPlane": {
+        "label": "Black Box",
+        "type": "dropdown",
+        "options": {
+          "Near": "80",
+          "Medium": "250",
+          "Far": "500",
+          "Huge": "1000"
+        }
+      }
+    }
+  },
+  {
+    "id": "sharpening",
+    "name": "Sharpening",
+    "flags": {
+      "FIntDebugForceMSAASamples": "4",
+      "FIntDebugFRMOptionalMSAALevelOverride": "4"
+    },
+    "controls": {
+      "FIntDebugForceMSAASamples": {
+        "label": "Sharpening",
+        "type": "dropdown",
+        "options": {
+          "1": "1",
+          "2": "2",
+          "4": "4",
+          "8": "8"
+        },
+        "connects_to": "FIntDebugFRMOptionalMSAALevelOverride"
+      }
+    }
+  },
+  {
+    "id": "hitbox-sync",
+    "name": "Hitbox Sync",
+    "flags": {
+      "DFIntS2PhysicsSenderRate": "250"
+    },
+    "controls": {
+      "DFIntS2PhysicsSenderRate": {
+        "label": "Hitbox Sync",
+        "type": "integer"
+      }
+    }
+  },
+  {
+    "id": "render-distance",
+    "name": "Render Distance",
+    "flags": {
+      "FRMFinalDistanceMaxStud": "500",
+      "FRMFinalDistanceMinStuds": "80"
+    },
+    "controls": {
+      "FRMFinalDistanceMaxStud": {
+        "label": "Maximum Studs",
+        "type": "integer"
+      },
+      "FRMFinalDistanceMinStuds": {
+        "label": "Minimum Studs",
+        "type": "integer"
+      }
+    }
+  },
+  {
+    "id": "remove-textures",
+    "name": "Remove Textures",
+    "flags": {
+      "RenderTextureTotalBudgetCount": "0"
+    },
+    "controls": {
+      "RenderTextureTotalBudgetCount": {
+        "label": "Remove Textures",
+        "type": "button",
+        "value": "0"
+      }
+    }
+  },
+  {
+    "id": "grey-avatar",
+    "name": "Grey Avatar",
+    "flags": {
+      "TextureCompositorActiveJobs": "0"
+    },
+    "controls": {
+      "TextureCompositorActiveJobs": {
+        "label": "Grey Avatar",
+        "type": "button",
+        "value": "0"
+      }
+    }
+  },
+  {
+    "id": "fps-boost",
+    "name": "FPS Boost",
+    "flags": {
+      "DFIntDebugDynamicRenderKiloPixels": "230",
+      "FIntCameraFarZPlane": "250"
+    },
+    "controls": {
+      "DFIntDebugDynamicRenderKiloPixels": {
+        "label": "Render KiloPixels",
+        "type": "dropdown",
+        "options": {
+          "144p": "37",
+          "240p": "77",
+          "360p": "230",
+          "480p": "410",
+          "720p": "922"
+        }
+      }
+    }
+  },
+  {
+    "id": "fps-max",
+    "name": "FPS Max",
+    "flags": {
+      "RenderTextureTotalBudgetCount": "0",
+      "TextureCompositorActiveJobs": "0"
+    },
+    "controls": {}
+  },
+  {
+    "id": "fps-performance",
+    "name": "FPS Performance",
+    "flags": {
+      "DFIntDebugDynamicRenderKiloPixels": "230",
+      "FRMFinalDistanceMaxStud": "250"
+    },
+    "controls": {}
+  },
+  {
+    "id": "resolution",
+    "name": "Resolution",
+    "flags": {
+      "DFIntDebugDynamicRenderKiloPixels": "922"
+    },
+    "controls": {
+      "DFIntDebugDynamicRenderKiloPixels": {
+        "label": "Resolution",
+        "type": "dropdown",
+        "options": {
+          "144p": "37",
+          "240p": "77",
+          "360p": "230",
+          "480p": "410",
+          "720p": "922",
+          "1080p": "2074"
+        }
+      }
+    }
+  },
+  {
+    "id": "scc-fps",
+    "name": "FPS",
+    "flags": {
+      "DFIntDebugDynamicRenderKiloPixels": "410",
+      "FIntCameraFarZPlane": "300",
+      "FRMFinalDistanceMaxStud": "250",
+      "DFIntS2PhysicsSenderRate": "45"
+    },
+    "controls": {}
+  },
+  {
+    "id": "scc-balanced",
+    "name": "Balanced",
+    "flags": {
+      "DFIntDebugDynamicRenderKiloPixels": "922",
+      "FIntCameraFarZPlane": "300",
+      "DFIntS2PhysicsSenderRate": "45"
+    },
+    "controls": {}
+  },
+  {
+    "id": "scc-quality",
+    "name": "Quality",
+    "flags": {
+      "DFIntDebugDynamicRenderKiloPixels": "2074",
+      "FIntDebugForceMSAASamples": "4",
+      "FIntDebugFRMOptionalMSAALevelOverride": "4",
+      "FIntCameraFarZPlane": "1000"
+    },
+    "controls": {}
+  }
+]
