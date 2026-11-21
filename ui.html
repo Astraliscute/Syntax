@@ -535,7 +535,7 @@ const titles = { flags: 'FFlags', presets: 'Saved Presets', scc: 'Presets', comm
 const stateNames = { waiting: 'Waiting for Roblox', settling: 'Waiting for Roblox startup', pending: 'Click Apply', paused: 'Lock FFlags paused', applying: 'Applying FFlags', ready: 'Roblox ready', connecting: 'Connecting', active: 'Roblox connected', partial: 'Review FFlags', error: 'Connection error', unsupported: 'Windows required' };
 const rowNames = { applied: 'Applied', missing: 'Offset unavailable', failed: 'Not applied', disabled: 'Disabled', waiting: 'Pending', unknown: 'Choose type', unsupported: 'Live string replacement unsupported' };
 const typeNames = { bool: 'Bool', int: 'Int', float: 'Float', string: 'String', log: 'Log', unknown: 'Type' };
-const updateNames = { unconfigured: '', checking: 'Checking', available: 'Update available', current: 'Up to date', no_release: 'Release unavailable', missing_asset: 'Syntax.exe missing', downloading: 'Downloading Syntax.exe', preparing: 'Preparing update', restarting: 'Restarting Syntax', error: 'Update failed' };
+const updateNames = { unconfigured: '', checking: 'Checking', available: 'Update available', current: 'Up to date', no_release: 'Release unavailable', missing_asset: 'Syntax.exe.zip missing', downloading: 'Downloading Syntax.exe.zip', preparing: 'Preparing update', restarting: 'Restarting Syntax', error: 'Update failed' };
 const app = {
   page: 'flags', rows: [], presets: [], revision: -1, status: { state: 'waiting', flags: {} },
   settings: { rpc: true, motion: true, snow: true, theme: 'purple', tray: true, startup: true, offset_source: 'theo', LockF: true }, update: { state: 'unconfigured' },
@@ -878,13 +878,13 @@ function updateStartup() {
     if (index === 2 && ['timeout', 'error', 'missing_asset', 'no_release'].includes(startup.update_state)) status = 'warn';
     step.dataset.status = status;
   });
-  const details = busy && update.state === 'downloading' && update.size ? `${Math.min(100, Math.floor((update.received || 0) * 100 / update.size))}% · Syntax.exe` :
-    choice ? update.error || `${update.latest || ''} · Syntax.exe` :
+  const details = busy && update.state === 'downloading' && update.size ? `${Math.min(100, Math.floor((update.received || 0) * 100 / update.size))}% · Syntax.exe.zip` :
+    choice ? update.error || `${update.latest || ''} · Syntax.exe.zip` :
     app.startupDelayed ? 'Taking longer than expected' : '';
   const detail = document.getElementById('startup-detail');
   if (detail.textContent !== details) detail.textContent = details;
   document.getElementById('startup-actions').classList.toggle('hidden', !choice && !app.startupDelayed);
-  document.getElementById('startup-update').classList.toggle('hidden', !choice || update.state !== 'available' || update.asset !== 'Syntax.exe' || !update.download);
+  document.getElementById('startup-update').classList.toggle('hidden', !choice || update.state !== 'available' || update.asset !== 'Syntax.exe.zip' || !update.download);
   document.getElementById('startup-check').classList.toggle('hidden', !choice || busy || update.state === 'available');
   document.getElementById('startup-check').disabled = update.state === 'checking';
   document.getElementById('startup-continue').classList.toggle('hidden', !canContinue);
@@ -899,7 +899,7 @@ function updateRelease() {
   const progress = update.state === 'downloading' && update.size ? ` ${Math.min(100, Math.floor((update.received || 0) * 100 / update.size))}%` : '';
   element.textContent = (update.error || updateNames[update.state] || '') + progress + (update.latest ? ` · ${update.latest}` : '');
   const install = document.getElementById('update-install');
-  install.classList.toggle('hidden', update.state !== 'available' || update.asset !== 'Syntax.exe' || !update.download);
+  install.classList.toggle('hidden', update.state !== 'available' || update.asset !== 'Syntax.exe.zip' || !update.download);
   install.disabled = busy;
   document.getElementById('release-open').classList.toggle('hidden', !update.url || busy);
   document.querySelector('[data-action="updates"]').disabled = busy || update.state === 'checking';

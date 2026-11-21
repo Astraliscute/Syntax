@@ -20,6 +20,7 @@ import threading
 import time
 import uuid
 import webbrowser
+import zipfile
 from urllib.parse import urlparse
 import requests
 import hashlib
@@ -769,6 +770,7 @@ class DesktopIntegration:
                 logging.getLogger('syntax').exception('Tray shutdown failed')
 VERSION = '2.0.0'
 EXECUTABLE_NAME = 'Syntax.exe'
+UPDATE_ARCHIVE_NAME = EXECUTABLE_NAME + '.zip'
 MAX_UPDATE_BYTES = 128 * 1024 * 1024
 GITHUB_OWNER = 'Astraliscute'
 GITHUB_REPO = 'Syntax'
@@ -820,9 +822,9 @@ def check_release(owner, repo, get=None):
         assets = release.get('assets')
         if not isinstance(assets, list) or len(assets) > 1000:
             raise ValueError('Invalid release assets')
-        matches = [asset for asset in assets if isinstance(asset, dict) and asset.get('name') == EXECUTABLE_NAME]
+        matches = [asset for asset in assets if isinstance(asset, dict) and asset.get('name') == UPDATE_ARCHIVE_NAME]
         if not matches:
-            return {**result, 'state': 'missing_asset', 'error': 'Syntax.exe missing'}
+            return {**result, 'state': 'missing_asset', 'error': 'Syntax.exe.zip missing'}
         if len(matches) != 1:
             raise ValueError('Duplicate update assets')
         asset = matches[0]
@@ -833,15 +835,15 @@ def check_release(owner, repo, get=None):
         prefix = f'/{owner}/{repo}/releases/download/'.lower()
         if (target.scheme != 'https' or target.netloc != 'github.com' or target.query or target.fragment
                 or not target.path.lower().startswith(prefix) or len(parts) != 7
-                or unquote(parts[-2]) != tag or parts[-1] != EXECUTABLE_NAME):
+                or unquote(parts[-2]) != tag or parts[-1] != UPDATE_ARCHIVE_NAME):
             raise ValueError('Invalid download URL')
         size = asset.get('size')
-        if asset.get('state') != 'uploaded' or type(size) is not int or not 256 <= size <= MAX_UPDATE_BYTES:
+        if asset.get('state') != 'uploaded' or type(size) is not int or not 22 <= size <= MAX_UPDATE_BYTES:
             raise ValueError('Invalid update asset')
         digest = asset.get('digest')
         if digest is not None and not re.fullmatch(r'sha256:[a-fA-F0-9]{64}', str(digest)):
             raise ValueError('Invalid update digest')
-        result.update(state='available' if newer else 'current', asset=EXECUTABLE_NAME, download=download_url,
+        result.update(state='available' if newer else 'current', asset=UPDATE_ARCHIVE_NAME, download=download_url,
                       size=size, sha256=digest.split(':', 1)[1].lower() if digest else '')
         return result
     except (ValueError, TypeError, KeyError, requests.RequestException) as error:
@@ -880,6 +882,7 @@ def download_update(release, path, cancel, progress=None, get=None):
     progress = progress or (lambda received, total: None)
     deadline = time.monotonic() + 180
     received = 0
+    checksum = hashlib.sha256()
     path = Path(path)
     created = False
     try:
@@ -903,15 +906,69 @@ def download_update(release, path, cancel, progress=None, get=None):
                     if received > release['size'] or received > MAX_UPDATE_BYTES:
                         raise ValueError('Update download too large')
                     stream.write(chunk)
+                    checksum.update(chunk)
                     progress(received, release['size'])
                 stream.flush()
                 os.fsync(stream.fileno())
         if cancel.is_set():
             raise RuntimeError('Update cancelled')
-        return executable_digest(path, release['size'], release['sha256'])
+        if received != release['size'] or not 22 <= received <= MAX_UPDATE_BYTES:
+            raise ValueError('Invalid archive size')
+        digest = checksum.hexdigest()
+        if release['sha256'] and digest != release['sha256']:
+            raise ValueError('Update checksum mismatch')
+        return digest
     except Exception:
         if created:
             path.unlink(missing_ok=True)
+        raise
+
+def extract_update_archive(path, destination, cancel):
+    destination = Path(destination)
+    created = False
+    deadline = time.monotonic() + 60
+    try:
+        if cancel.is_set():
+            raise RuntimeError('Update cancelled')
+        if not 22 <= Path(path).stat().st_size <= MAX_UPDATE_BYTES:
+            raise ValueError('Invalid archive size')
+        with zipfile.ZipFile(path) as archive:
+            entries = archive.infolist()
+            if len(entries) != 1 or entries[0].filename != EXECUTABLE_NAME:
+                raise ValueError('Invalid update archive')
+            entry = entries[0]
+            mode = entry.external_attr >> 16 & 0o170000
+            if entry.is_dir() or entry.flag_bits & 1 or mode not in (0, 0o100000):
+                raise ValueError('Invalid archive entry')
+            if entry.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
+                raise ValueError('Unsupported archive compression')
+            if not 256 <= entry.file_size <= MAX_UPDATE_BYTES:
+                raise ValueError('Invalid executable size')
+            received = 0
+            with archive.open(entry) as source, destination.open('xb') as output:
+                created = True
+                while True:
+                    if cancel.is_set():
+                        raise RuntimeError('Update cancelled')
+                    if time.monotonic() > deadline:
+                        raise TimeoutError('Update extraction timed out')
+                    chunk = source.read(65536)
+                    if not chunk:
+                        break
+                    received += len(chunk)
+                    if received > entry.file_size or received > MAX_UPDATE_BYTES:
+                        raise ValueError('Update extraction too large')
+                    output.write(chunk)
+                output.flush()
+                os.fsync(output.fileno())
+            if received != entry.file_size:
+                raise ValueError('Incomplete update archive')
+        if cancel.is_set():
+            raise RuntimeError('Update cancelled')
+        return executable_digest(destination, received)
+    except Exception:
+        if created:
+            destination.unlink(missing_ok=True)
         raise
 
 def prepare_update(release, target, directory, cancel, progress=None, get=None):
@@ -924,16 +981,21 @@ def prepare_update(release, target, directory, cancel, progress=None, get=None):
     workspace = updates / token
     workspace.mkdir(parents=True)
     source = workspace / EXECUTABLE_NAME
+    archive = target.with_name(UPDATE_ARCHIVE_NAME + '.bak')
+    downloaded = False
     pending = None
     try:
-        digest = download_update(release, source, cancel, progress, get)
+        download_update(release, archive, cancel, progress, get)
+        downloaded = True
+        digest = extract_update_archive(archive, source, cancel)
+        size = source.stat().st_size
         with tempfile.NamedTemporaryFile(prefix='Syntax-update-', suffix='.exe', dir=target.parent, delete=False) as stream:
             pending = Path(stream.name)
         shutil.copy2(source, pending)
-        executable_digest(pending, release['size'], digest)
+        executable_digest(pending, size, digest)
         data = {'schema': 1, 'pid': os.getpid(), 'token': token, 'version': release['latest'], 'current': VERSION,
                 'source': str(source.resolve()), 'target': str(target), 'pending': str(pending.resolve()),
-                'backup': str(target.with_name('Syntax-backup-' + token + '.bak')), 'size': release['size'],
+                'backup': str(target.with_name('Syntax-backup-' + token + '.bak')), 'size': size,
                 'sha256': digest, 'previous': previous}
         manifest = workspace / 'update.json'
         atomic_json(manifest, data)
@@ -943,6 +1005,9 @@ def prepare_update(release, target, directory, cancel, progress=None, get=None):
             pending.unlink(missing_ok=True)
         source.unlink(missing_ok=True)
         raise
+    finally:
+        if downloaded:
+            archive.unlink(missing_ok=True)
 
 def launch_application(path):
     return subprocess.Popen([str(path)], cwd=str(Path(path).parent), close_fds=True,
@@ -2029,7 +2094,7 @@ class OffsetCatalog:
         return {'items': filtered[start:start + limit], 'total': len(filtered), 'count': len(entries), 'page': page, 'more': start + limit < len(filtered)}
 APP_NAME = 'Syntax'
 DISPLAY_VERSION = 'v' + (VERSION[:-2] if VERSION.endswith('.0') else VERSION)
-DISCORD_URL = 'https://discord.gg/3FhE6bC9uM'
+DISCORD_URL = 'https://discord.gg/98HWke3zMg'
 DISCORD_APP_ID = '1552123891118243901'
 RESOURCES = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 MAX_IMPORT_BYTES = 4 * 1024 * 1024
@@ -2470,6 +2535,8 @@ class Api:
                 self.log('[i] ' + str(result.get('error') or 'Update check unavailable'))
             if result.get('state') == 'available' and checked and not self._background and not self._services_started:
                 self._set_startup('update_available', 'Update available', 3)
+                if sys.platform == 'win32' and getattr(sys, 'frozen', False):
+                    self.install_update()
                 return
             self._start_services()
         except Exception as error:
@@ -2566,7 +2633,11 @@ class Api:
                             from pypresence import Presence
                             presence = Presence(DISCORD_APP_ID)
                             presence.connect()
-                        presence.update(details='Syntax ' + DISPLAY_VERSION, state='FFlag Manager', large_image='syntax')
+                        active = sys.platform == 'win32' and bool(find_roblox_processes())
+                        state = 'Injecting FFlags with Syntax' if active else 'chilling :>'
+                        presence.update(details='Syntax ' + DISPLAY_VERSION, state=state, large_image='syntax',
+                                        buttons=[{'label': 'Discord Server', 'url': DISCORD_URL},
+                                                 {'label': 'Github Page', 'url': f'https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}'}])
                     except Exception:
                         if presence:
                             try:
@@ -2575,7 +2646,10 @@ class Api:
                                 pass
                         presence = None
                 elif presence:
-                    presence.close()
+                    try:
+                        presence.close()
+                    except Exception:
+                        pass
                     presence = None
                 self._rpc_stop.wait(15)
         finally:
@@ -3013,7 +3087,7 @@ class Api:
             return {'ok': True, 'busy': True}
         with self.lock:
             release = copy.deepcopy(self.update)
-            if release.get('state') != 'available' or release.get('asset') != EXECUTABLE_NAME:
+            if release.get('state') != 'available' or release.get('asset') != UPDATE_ARCHIVE_NAME:
                 self._update_lock.release()
                 return {'ok': False, 'error': 'No update available'}
             self.update.update(state='downloading', received=0, error='')
@@ -3330,9 +3404,10 @@ def verify_package(executable, resources):
     print('Package verification passed.')
 
 def run_tests():
+    import io
     import types
     import unittest
-    from unittest.mock import patch
+    from unittest.mock import Mock, patch
     syntax = sys.modules[__name__]
     THEO = '\n'.join(['version-1234567890abcdef', 'namespace FFlagOffsets{', 'namespace FFlagList{inline constexpr uintptr_t Pointer=0x1100;}', 'namespace FFlags{', 'inline constexpr uintptr_t First=0x2000;', 'inline constexpr uintptr_t Second=0x2010;', '}', '}'])
 
@@ -3868,7 +3943,7 @@ def run_tests():
             self.assertEqual(self.app._startup_state['update_state'], 'timeout')
 
         def test_startup_update_waits_for_choice(self):
-            mocks = self._mock_startup({'state': 'available', 'asset': 'Syntax.exe'})
+            mocks = self._mock_startup({'state': 'available', 'asset': 'Syntax.exe.zip'})
             self.app._run_startup()
             mocks['controller'].assert_not_called()
             self.assertEqual(self.app._startup_state['state'], 'update_available')
@@ -3878,11 +3953,20 @@ def run_tests():
             mocks['controller'].assert_called_once()
 
         def test_background_startup_does_not_prompt(self):
-            mocks = self._mock_startup({'state': 'available', 'asset': 'Syntax.exe'})
+            mocks = self._mock_startup({'state': 'available', 'asset': 'Syntax.exe.zip'})
             self.app._background = True
             self.app._run_startup()
             mocks['controller'].assert_called_once()
             self.assertEqual(self.app._startup_state['state'], 'ready')
+
+        def test_packaged_startup_installs_zip_update(self):
+            mocks = self._mock_startup({'state': 'available', 'asset': 'Syntax.exe.zip'})
+            with patch.object(sys, 'platform', 'win32'), patch.object(sys, 'frozen', True, create=True), \
+                    patch.object(self.app, 'install_update', return_value={'ok': True}) as install:
+                self.app._run_startup()
+            install.assert_called_once()
+            mocks['controller'].assert_not_called()
+            self.assertEqual(self.app._startup_state['state'], 'update_available')
 
         def test_startup_update_blocks_continue(self):
             mocks = self._mock_startup()
@@ -3926,7 +4010,7 @@ def run_tests():
             self.assertFalse(self.app._update_lock.locked())
 
         def test_failed_download_never_exits_application(self):
-            self.app.update = {'state': 'available', 'asset': 'Syntax.exe', 'latest': 'v3.0'}
+            self.app.update = {'state': 'available', 'asset': 'Syntax.exe.zip', 'latest': 'v3.0'}
             done = threading.Event()
             with patch.object(sys, 'platform', 'win32'), patch.object(sys, 'frozen', True, create=True), \
                     patch.object(syntax, 'prepare_update', side_effect=ValueError('Download failed')), \
@@ -3938,7 +4022,7 @@ def run_tests():
             self.assertEqual(self.app.update['state'], 'error')
 
         def test_update_exits_only_after_ready(self):
-            self.app.update = {'state': 'available', 'asset': 'Syntax.exe', 'latest': 'v3.0'}
+            self.app.update = {'state': 'available', 'asset': 'Syntax.exe.zip', 'latest': 'v3.0'}
             workspace = Path(self.directory.name) / 'helper'
             workspace.mkdir()
             manifest = workspace / 'update.json'
@@ -4143,6 +4227,54 @@ def run_tests():
             result = repository.refresh(self.app._validate_repository_file)
             self.assertEqual(len(result['files']['configs/presets.json']), 13)
             self.assertTrue((repository.directory / 'snapshot.json').exists())
+
+    class RpcTests(unittest.TestCase):
+
+        def run_rpc(self, processes, enabled=None, fail_update=False, fail_close=False):
+            stop = Mock()
+            stop.is_set.side_effect = [False] * len(processes) + [True]
+            settings = Mock()
+            settings.get.side_effect = enabled or [True] * len(processes)
+            clients = [Mock(), Mock()]
+            if fail_update:
+                clients[0].update.side_effect = RuntimeError('Discord disconnected')
+            if fail_close:
+                clients[0].close.side_effect = RuntimeError('Discord closed')
+            constructor = Mock(side_effect=clients)
+            app = types.SimpleNamespace(_rpc_stop=stop, settings=settings)
+            with patch.dict(sys.modules, {'pypresence': types.SimpleNamespace(Presence=constructor)}), \
+                    patch.object(sys, 'platform', 'win32'), \
+                    patch.object(syntax, 'find_roblox_processes', side_effect=processes, create=True):
+                syntax.Api._rpc_loop(app)
+            return clients, constructor
+
+        def test_presence_tracks_roblox_and_buttons(self):
+            clients, constructor = self.run_rpc([[], [123], []])
+            constructor.assert_called_once_with(syntax.DISCORD_APP_ID)
+            updates = [call.kwargs for call in clients[0].update.call_args_list]
+            self.assertEqual([value['state'] for value in updates], ['chilling :>', 'Injecting FFlags with Syntax', 'chilling :>'])
+            self.assertEqual(updates[0]['details'], 'Syntax ' + syntax.DISPLAY_VERSION)
+            self.assertEqual(updates[0]['buttons'], [{'label': 'Discord Server', 'url': 'https://discord.gg/98HWke3zMg'},
+                                                   {'label': 'Github Page', 'url': 'https://github.com/Astraliscute/Syntax'}])
+            clients[0].close.assert_called_once()
+
+        def test_disabled_presence_never_connects(self):
+            clients, constructor = self.run_rpc([[]], enabled=[False])
+            constructor.assert_not_called()
+            clients[0].update.assert_not_called()
+
+        def test_presence_reconnects_after_disconnect(self):
+            clients, constructor = self.run_rpc([[], [123]], fail_update=True)
+            self.assertEqual(constructor.call_count, 2)
+            self.assertEqual(clients[1].update.call_args.kwargs['state'], 'Injecting FFlags with Syntax')
+            clients[0].close.assert_called_once()
+            clients[1].close.assert_called_once()
+
+        def test_disabling_presence_tolerates_closed_discord(self):
+            clients, constructor = self.run_rpc([[], [], [123]], enabled=[True, False, True], fail_close=True)
+            self.assertEqual(constructor.call_count, 2)
+            clients[1].update.assert_called_once()
+            clients[1].close.assert_called_once()
 
     class DesktopTests(unittest.TestCase):
 
@@ -4535,6 +4667,7 @@ def run_tests():
             self.backup = app / 'Syntax-backup-test.bak'
             self.old = self.pe(b'old')
             self.new = self.pe(b'new')
+            self.archive = self.zip_image(self.new)
             self.target.write_bytes(self.old)
             self.source.write_bytes(self.new)
             self.pending.write_bytes(self.new)
@@ -4548,9 +4681,16 @@ def run_tests():
             tag = f'v{syntax.version_key(syntax.VERSION)[0] + 1}.0.0'
             self.release = {'tag_name': tag, 'html_url': 'https://github.com/Astraliscute/Syntax/releases/tag/' + tag,
                             'draft': False, 'prerelease': False, 'assets': [
-                                {'name': 'Syntax.exe', 'state': 'uploaded', 'size': len(self.new),
-                                 'digest': 'sha256:' + hashlib.sha256(self.new).hexdigest(),
-                                 'browser_download_url': 'https://github.com/Astraliscute/Syntax/releases/download/' + tag + '/Syntax.exe'}]}
+                                 {'name': 'Syntax.exe.zip', 'state': 'uploaded', 'size': len(self.archive),
+                                  'digest': 'sha256:' + hashlib.sha256(self.archive).hexdigest(),
+                                  'browser_download_url': 'https://github.com/Astraliscute/Syntax/releases/download/' + tag + '/Syntax.exe.zip'}]}
+
+        @staticmethod
+        def zip_image(body, name='Syntax.exe', compression=zipfile.ZIP_DEFLATED):
+            output = io.BytesIO()
+            with zipfile.ZipFile(output, 'w', compression=compression) as archive:
+                archive.writestr(name, body)
+            return output.getvalue()
 
         @staticmethod
         def pe(marker):
@@ -4586,7 +4726,7 @@ def run_tests():
                         raise requests.HTTPError('Request failed')
 
                 def iter_content(inner, size):
-                    yield self.new if body is None else body
+                    yield self.archive if body is None else body
             return Reply()
 
         def metadata(self, document=None):
@@ -4606,15 +4746,15 @@ def run_tests():
                 syntax.version_key('unknown')
 
         def test_exact_asset_selected(self):
-            self.release['assets'].insert(0, {'name': 'Other.exe'})
+            self.release['assets'].insert(0, {'name': 'Syntax.exe'})
             result = self.metadata()
             self.assertEqual(result['state'], 'available')
-            self.assertEqual(result['asset'], 'Syntax.exe')
-            self.assertTrue(result['download'].endswith('/Syntax.exe'))
-            self.assertEqual(result['size'], len(self.new))
+            self.assertEqual(result['asset'], 'Syntax.exe.zip')
+            self.assertTrue(result['download'].endswith('/Syntax.exe.zip'))
+            self.assertEqual(result['size'], len(self.archive))
 
         def test_missing_or_lowercase_asset_rejected(self):
-            for name in ('syntax.exe', 'Syntax.1.1.exe', 'Other.exe'):
+            for name in ('syntax.exe.zip', 'Syntax.exe', 'Syntax.1.1.exe.zip', 'Other.exe.zip'):
                 self.release['assets'][0]['name'] = name
                 result = self.metadata()
                 self.assertEqual(result['state'], 'missing_asset')
@@ -4631,11 +4771,11 @@ def run_tests():
         def test_release_without_update_is_current(self):
             for tag in (syntax.VERSION, 'Release1.1'):
                 self.release['tag_name'] = tag
-                self.release['assets'][0]['browser_download_url'] = 'https://github.com/Astraliscute/Syntax/releases/download/' + tag + '/Syntax.exe'
+                self.release['assets'][0]['browser_download_url'] = 'https://github.com/Astraliscute/Syntax/releases/download/' + tag + '/Syntax.exe.zip'
                 self.assertEqual(self.metadata()['state'], 'current')
 
         def test_foreign_asset_url_rejected(self):
-            self.release['assets'][0]['browser_download_url'] = 'https://example.invalid/Syntax.exe'
+            self.release['assets'][0]['browser_download_url'] = 'https://example.invalid/Syntax.exe.zip'
             self.assertEqual(self.metadata()['state'], 'error')
 
         def test_duplicate_asset_rejected(self):
@@ -4665,13 +4805,13 @@ def run_tests():
 
         def test_download_verified_before_install(self):
             release = self.metadata()
-            destination = self.root / 'download.exe'
+            destination = self.root / 'Syntax.exe.zip.bak'
             progress = []
             digest = syntax.download_update(release, destination, threading.Event(), lambda done, total: progress.append((done, total)), get=lambda *args, **kwargs: self.response())
-            self.assertEqual(digest, self.data['sha256'])
-            self.assertEqual(destination.read_bytes(), self.new)
+            self.assertEqual(digest, hashlib.sha256(self.archive).hexdigest())
+            self.assertEqual(destination.read_bytes(), self.archive)
             self.assertEqual(self.target.read_bytes(), self.old)
-            self.assertEqual(progress[-1], (len(self.new), len(self.new)))
+            self.assertEqual(progress[-1], (len(self.archive), len(self.archive)))
 
         def test_download_checksum_failure_preserves_application(self):
             release = self.metadata()
@@ -4683,7 +4823,7 @@ def run_tests():
             self.assertEqual(self.target.read_bytes(), self.old)
 
         def test_partial_and_oversized_download_removed(self):
-            for body in (self.new[:-1], self.new + b'x'):
+            for body in (self.archive[:-1], self.archive + b'x'):
                 destination = self.root / 'download.exe'
                 with self.assertRaises(ValueError):
                     syntax.download_update(self.metadata(), destination, threading.Event(), get=lambda *args, **kwargs: self.response(body=body))
@@ -4714,11 +4854,142 @@ def run_tests():
                 syntax.executable_digest(invalid)
 
         def test_preparation_does_not_replace_running_application(self):
-            manifest, data = syntax.prepare_update(self.metadata(), self.target, self.directory, threading.Event(), get=lambda *args, **kwargs: self.response())
+            archive = self.target.with_name('Syntax.exe.zip.bak')
+            reply = self.response()
+            def chunks(size):
+                self.assertTrue(archive.is_file())
+                self.assertEqual(self.target.read_bytes(), self.old)
+                yield self.archive
+            reply.iter_content = chunks
+            manifest, data = syntax.prepare_update(self.metadata(), self.target, self.directory, threading.Event(), get=lambda *args, **kwargs: reply)
             self.assertTrue(manifest.is_file())
             self.assertEqual(Path(data['source']).name, 'Syntax.exe')
             self.assertEqual(Path(data['pending']).read_bytes(), self.new)
+            self.assertEqual(data['size'], len(self.new))
+            self.assertEqual(data['sha256'], hashlib.sha256(self.new).hexdigest())
             self.assertEqual(self.target.read_bytes(), self.old)
+            self.assertFalse(archive.exists())
+
+        def test_archive_rejects_unsafe_member_names(self):
+            archive = self.root / 'update.zip'
+            output = self.root / 'extracted.exe'
+            for name in ('../Syntax.exe', '/Syntax.exe', 'folder/Syntax.exe', 'folder\\Syntax.exe', 'syntax.exe', 'Syntax.exe:stream'):
+                with self.subTest(name=name):
+                    archive.write_bytes(self.zip_image(self.new, name))
+                    with self.assertRaises(ValueError):
+                        syntax.extract_update_archive(archive, output, threading.Event())
+                    self.assertFalse(output.exists())
+
+        def test_archive_rejects_extra_members(self):
+            archive = self.root / 'update.zip'
+            archive.write_bytes(self.archive)
+            with zipfile.ZipFile(archive, 'a') as package:
+                package.writestr('Other.exe', self.new)
+            output = self.root / 'extracted.exe'
+            with self.assertRaises(ValueError):
+                syntax.extract_update_archive(archive, output, threading.Event())
+            self.assertFalse(output.exists())
+
+        def test_archive_rejects_symlinks_and_encryption(self):
+            archive = self.root / 'update.zip'
+            output = self.root / 'extracted.exe'
+            entry = zipfile.ZipInfo('Syntax.exe')
+            entry.create_system = 3
+            entry.external_attr = 0o120777 << 16
+            linked = self.zip_image(self.new, entry)
+            encrypted = bytearray(self.archive)
+            offset = encrypted.index(b'PK\x01\x02')
+            struct.pack_into('<H', encrypted, offset + 8, 1)
+            for body in (linked, encrypted):
+                archive.write_bytes(body)
+                with self.assertRaises(ValueError):
+                    syntax.extract_update_archive(archive, output, threading.Event())
+                self.assertFalse(output.exists())
+
+        def test_archive_rejects_excessive_expanded_size(self):
+            archive = self.root / 'update.zip'
+            output = self.root / 'extracted.exe'
+            body = bytearray(self.archive)
+            offset = body.index(b'PK\x01\x02')
+            struct.pack_into('<I', body, offset + 24, syntax.MAX_UPDATE_BYTES + 1)
+            archive.write_bytes(body)
+            with self.assertRaises(ValueError):
+                syntax.extract_update_archive(archive, output, threading.Event())
+            self.assertFalse(output.exists())
+
+        def test_archive_rejects_corrupt_crc(self):
+            archive = self.root / 'update.zip'
+            output = self.root / 'extracted.exe'
+            body = self.zip_image(self.new, compression=zipfile.ZIP_STORED).replace(b'new', b'bad', 1)
+            archive.write_bytes(body)
+            with self.assertRaises(zipfile.BadZipFile):
+                syntax.extract_update_archive(archive, output, threading.Event())
+            self.assertFalse(output.exists())
+
+        def test_archive_validates_executable_contents(self):
+            archive = self.root / 'update.zip'
+            output = self.root / 'extracted.exe'
+            wrong = bytearray(self.new)
+            struct.pack_into('<H', wrong, 132, 0x14C)
+            for body in (b'<html>' + bytes(506), wrong):
+                archive.write_bytes(self.zip_image(body))
+                with self.assertRaises(ValueError):
+                    syntax.extract_update_archive(archive, output, threading.Event())
+                self.assertFalse(output.exists())
+
+        def test_archive_extraction_cancellation_removes_output(self):
+            archive = self.root / 'update.zip'
+            output = self.root / 'extracted.exe'
+            archive.write_bytes(self.archive)
+            cancel = Mock()
+            cancel.is_set.side_effect = [False, False, True]
+            with self.assertRaises(RuntimeError):
+                syntax.extract_update_archive(archive, output, cancel)
+            self.assertFalse(output.exists())
+
+        def test_archive_extraction_timeout_removes_output(self):
+            archive = self.root / 'update.zip'
+            output = self.root / 'extracted.exe'
+            archive.write_bytes(self.archive)
+            with patch.object(time, 'monotonic', side_effect=[0, 61]):
+                with self.assertRaises(TimeoutError):
+                    syntax.extract_update_archive(archive, output, threading.Event())
+            self.assertFalse(output.exists())
+
+        def test_archive_existing_destination_preserved(self):
+            archive = self.root / 'update.zip'
+            output = self.root / 'extracted.exe'
+            archive.write_bytes(self.archive)
+            output.write_bytes(b'keep')
+            with self.assertRaises(FileExistsError):
+                syntax.extract_update_archive(archive, output, threading.Event())
+            self.assertEqual(output.read_bytes(), b'keep')
+
+        def test_preparation_preserves_existing_archive(self):
+            archive = self.target.with_name('Syntax.exe.zip.bak')
+            archive.write_bytes(b'keep')
+            with self.assertRaises(FileExistsError):
+                syntax.prepare_update(self.metadata(), self.target, self.directory, threading.Event(), get=lambda *args, **kwargs: self.response())
+            self.assertEqual(archive.read_bytes(), b'keep')
+            self.assertEqual(self.target.read_bytes(), self.old)
+
+        def test_corrupt_archive_never_replaces_application(self):
+            body = b'<html>' + bytes(506)
+            before = set(self.target.parent.glob('Syntax-update-*'))
+            self.release['assets'][0].update(size=len(body), digest='sha256:' + hashlib.sha256(body).hexdigest())
+            with self.assertRaises(zipfile.BadZipFile):
+                syntax.prepare_update(self.metadata(), self.target, self.directory, threading.Event(), get=lambda *args, **kwargs: self.response(body=body))
+            self.assertEqual(self.target.read_bytes(), self.old)
+            self.assertFalse(self.target.with_name('Syntax.exe.zip.bak').exists())
+            self.assertEqual(set(self.target.parent.glob('Syntax-update-*')), before)
+            self.assertEqual(self.pending.read_bytes(), self.new)
+
+        def test_download_without_optional_digest(self):
+            self.release['assets'][0].pop('digest')
+            destination = self.root / 'update.zip'
+            digest = syntax.download_update(self.metadata(), destination, threading.Event(), get=lambda *args, **kwargs: self.response())
+            self.assertEqual(digest, hashlib.sha256(self.archive).hexdigest())
+            self.assertEqual(destination.read_bytes(), self.archive)
 
         def test_install_waits_then_replaces(self):
             events = []
@@ -4792,6 +5063,7 @@ def run_tests():
 
         def test_binary_filename_contract(self):
             self.assertEqual(syntax.EXECUTABLE_NAME, 'Syntax.exe')
+            self.assertEqual(syntax.UPDATE_ARCHIVE_NAME, 'Syntax.exe.zip')
 
     class SourceShapeTests(unittest.TestCase):
 
@@ -4802,7 +5074,7 @@ def run_tests():
         def test_single_python_module(self):
             self.assertEqual(SOURCES, ('syntax.py',))
             self.assertIsNone(syntax.__doc__)
-    suite = unittest.TestSuite((unittest.defaultTestLoader.loadTestsFromTestCase(case) for case in (ValidationTests, OffsetTests, DumperTests, WorkerTests, ApiTests, DesktopTests, NativeTests, RepositoryRegressionTests, EditorRegressionTests, UpdateTests, SourceShapeTests)))
+    suite = unittest.TestSuite((unittest.defaultTestLoader.loadTestsFromTestCase(case) for case in (ValidationTests, OffsetTests, DumperTests, WorkerTests, ApiTests, RpcTests, DesktopTests, NativeTests, RepositoryRegressionTests, EditorRegressionTests, UpdateTests, SourceShapeTests)))
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     return 0 if result.wasSuccessful() else 1
 if __name__ == '__main__':

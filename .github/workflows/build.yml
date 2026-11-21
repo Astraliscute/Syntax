@@ -62,6 +62,11 @@ jobs:
         run: |
           $process = Start-Process -FilePath (Resolve-Path -LiteralPath "Syntax.exe").Path -ArgumentList "--check" -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Executable verification failed: $($process.ExitCode)" }
+      - name: Package Syntax.exe.zip
+        shell: pwsh
+        run: Compress-Archive -LiteralPath "Syntax.exe" -DestinationPath "Syntax.exe.zip" -CompressionLevel Optimal -Force
+      - name: Verify archive
+        run: python -c "import pathlib,tempfile,threading,syntax; directory=tempfile.TemporaryDirectory(); target=pathlib.Path(directory.name)/syntax.EXECUTABLE_NAME; assert syntax.extract_update_archive(syntax.UPDATE_ARCHIVE_NAME,target,threading.Event()) == syntax.executable_digest(syntax.EXECUTABLE_NAME); directory.cleanup()"
       - name: Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -72,6 +77,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: Syntax.exe
+          files: Syntax.exe.zip
           fail_on_unmatched_files: true
           make_latest: true
