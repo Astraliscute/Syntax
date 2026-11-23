@@ -564,13 +564,20 @@ def theme_image(theme, resources):
 
 def theme_logos(resources):
     import io
-    from PIL import Image
+    from PIL import Image, ImageColor, ImageOps
+    with Image.open(Path(resources) / 'syntax.ico') as original:
+        image = original.convert('RGBA')
+    image.thumbnail((96, 96), Image.Resampling.LANCZOS)
+    gray = ImageOps.grayscale(image)
+    alpha = image.getchannel('A')
     logos = {}
     for theme in THEMES:
-        image = theme_image(theme, resources)
-        image.thumbnail((96, 96), Image.Resampling.LANCZOS)
+        color = THEME_COLORS[theme]
+        shadow = tuple(channel // 8 for channel in ImageColor.getrgb(color))
+        result = ImageOps.colorize(gray, shadow, 'white', mid=color, midpoint=140)
+        result.putalpha(alpha)
         with io.BytesIO() as buffer:
-            image.save(buffer, format='PNG', optimize=True)
+            result.save(buffer, format='PNG', optimize=True)
             logos[theme] = 'data:image/png;base64,' + base64.b64encode(buffer.getvalue()).decode('ascii')
     return logos
 
@@ -2057,6 +2064,7 @@ class OffsetCatalog:
         self.store = store
         self._lock = threading.RLock()
         self._entries = []
+        self._folded = []
         self._lookup = {}
         self._at = 0
         self.known_names = None
@@ -2074,6 +2082,7 @@ class OffsetCatalog:
             else:
                 entries = parse_catalog(download(URL, self._get).decode('utf-8-sig'))
             self._entries = entries
+            self._folded = [(entry['name'].casefold(), entry) for entry in entries]
             self._lookup = {entry['name']: entry for entry in entries}
             self.known_names = frozenset((flag_parts(entry['name'])[1] for entry in entries))
             self.revision += 1
@@ -2089,7 +2098,11 @@ class OffsetCatalog:
         query = str(query).strip().casefold()[:160]
         page, limit = (max(0, int(page)), max(1, min(100, int(limit))))
         entries = self.entries(force)
-        filtered = [entry for entry in entries if query in entry['name'].casefold()] if query else entries
+        if query:
+            folded = self._folded if len(self._folded) == len(entries) else [(entry['name'].casefold(), entry) for entry in entries]
+            filtered = [entry for name, entry in folded if query in name]
+        else:
+            filtered = entries
         start = page * limit
         return {'items': filtered[start:start + limit], 'total': len(filtered), 'count': len(entries), 'page': page, 'more': start + limit < len(filtered)}
 APP_NAME = 'Syntax'
@@ -2327,6 +2340,8 @@ class Api:
         self.window_active = True
         self._row_payload_key = None
         self._row_payload = []
+        self._hints_key = None
+        self._hints_cache = {}
         if self.settings.load_error:
             self.log('[!] Settings unavailable')
         self._consume_update_report()
@@ -3150,14 +3165,21 @@ class Api:
         return {'ok': False, 'error': 'Release not found'}
 
     def _catalog_hints(self):
-        hints = {}
-        for preset in self.presets:
-            for name, value in preset['flags'].items():
-                row = normalize_flag(name, value)
-                hints[row['suffix']] = row
         with self.lock:
-            hints.update({row['suffix']: copy.deepcopy(row) for row in self.rows if not row.get('needs_type')})
-        return hints
+            key = (self.revision, self.preset_revision)
+            if key == self._hints_key:
+                return self._hints_cache
+            hints = {}
+            for preset in self.presets:
+                for row in preset.get('rows', ()):
+                    if not row.get('needs_type'):
+                        hints[row['suffix']] = row
+            for row in self.rows:
+                if not row.get('needs_type'):
+                    hints[row['suffix']] = row
+            self._hints_key = key
+            self._hints_cache = hints
+            return hints
 
     def _catalog_item(self, entry, hints):
         prefix, clean = flag_parts(entry['name'])

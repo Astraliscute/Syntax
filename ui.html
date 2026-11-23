@@ -537,13 +537,19 @@ const rowNames = { applied: 'Applied', missing: 'Offset unavailable', failed: 'N
 const typeNames = { bool: 'Bool', int: 'Int', float: 'Float', string: 'String', log: 'Log', unknown: 'Type' };
 const updateNames = { unconfigured: '', checking: 'Checking', available: 'Update available', current: 'Up to date', no_release: 'Release unavailable', missing_asset: 'Syntax.exe.zip missing', downloading: 'Downloading Syntax.exe.zip', preparing: 'Preparing update', restarting: 'Restarting Syntax', error: 'Update failed' };
 const app = {
-  page: 'flags', rows: [], presets: [], revision: -1, status: { state: 'waiting', flags: {} },
+  page: 'flags', rows: [], rowMap: new Map(), rowSuffixes: new Set(), presets: [], revision: -1, status: { state: 'waiting', flags: {} },
   settings: { rpc: true, motion: true, snow: true, theme: 'purple', tray: true, startup: true, offset_source: 'theo', LockF: true }, update: { state: 'unconfigured' },
   logs: [], logId: 0, query: '', filter: 'all', limit: 100,
   loaded: false, ready: false, startupDelayed: false, startupState: { state: 'connecting', message: 'Connecting to desktop', completed: 0, total: 4 }, polling: null, modal: null, returnFocus: null,
   presetRevision: -1, libraryCatalogRevision: -1, catalogRevision: -1, draft: null, community: [], dump: {}, configs: {}, windowActive: true, rowsPending: false,
   catalog: { items: [], count: 0, total: 0, page: 0, more: false, query: '', loading: false, loaded: false, error: '', serial: 0, sourceRevision: -1 },
 };
+function indexRows() {
+  const map = new Map(), suffixes = new Set();
+  for (const row of app.rows) { map.set(row.id, row); suffixes.add(row.suffix); }
+  app.rowMap = map;
+  app.rowSuffixes = suffixes;
+}
 const content = document.getElementById('content');
 let catalogTimer;
 let draftTimer;
@@ -697,8 +703,10 @@ function renderRows() {
 }
 
 function updateRowStatus() {
-  const rows = new Map(app.rows.map(row => [row.id, row]));
-  document.querySelectorAll('[data-rowstatus]').forEach(element => {
+  const nodes = document.querySelectorAll('[data-rowstatus]');
+  if (!nodes.length) return;
+  const rows = app.rowMap.size === app.rows.length ? app.rowMap : new Map(app.rows.map(row => [row.id, row]));
+  nodes.forEach(element => {
     const row = rows.get(element.dataset.rowstatus);
     const state = row?.duplicate ? 'duplicate' : row?.missing ? 'missing' : row?.needs_type ? 'unknown' : row && !row.enabled ? 'disabled' : app.status.flags[row?.name] || 'waiting';
     const tone = state === 'applied' ? 'good' : ['missing', 'unknown'].includes(state) ? 'warn' : ['failed', 'duplicate'].includes(state) ? 'bad' : '';
@@ -749,7 +757,7 @@ async function fetchCatalog(force = false, append = false) {
 function renderCatalog() {
   const list = document.getElementById('catalog-rows');
   if (!list) return;
-  const catalog = app.catalog, existing = new Set(app.rows.map(row => row.suffix));
+  const catalog = app.catalog, existing = app.rowSuffixes.size || !app.rows.length ? app.rowSuffixes : new Set(app.rows.map(row => row.suffix));
   document.getElementById('catalog-count').textContent = catalog.count ? `${catalog.count.toLocaleString('en-US')} FFlags` : 'FFlags';
   if (catalog.items.length) {
     const scroll = document.getElementById('catalog-scroll');
@@ -1100,13 +1108,15 @@ async function poll(force = false) {
     try {
       const data = await api('get_state', app.logId, app.revision, app.catalogRevision, app.status.revision ?? -1);
       if (!data?.ok) return;
-      const changed = app.revision !== data.revision || app.catalogRevision !== data.catalog_revision, previousStatus = JSON.stringify(app.status.flags);
+      const changed = app.revision !== data.revision || app.catalogRevision !== data.catalog_revision;
+      const checkStatus = Boolean(data.status && app.ready && app.page === 'flags' && app.filter !== 'all');
+      const previousStatus = checkStatus ? JSON.stringify(app.status.flags) : '';
       if (app.catalogRevision !== data.catalog_revision && app.catalog.sourceRevision !== data.catalog_revision) {
         Object.assign(app.catalog, { items: [], loaded: false, loading: false, error: '', page: 0, more: false, count: 0 });
         app.catalog.serial++;
       }
       const presetsChanged = app.presetRevision !== data.preset_revision || app.libraryCatalogRevision !== data.catalog_revision;
-      if (data.rows) app.rows = data.rows;
+      if (data.rows) { app.rows = data.rows; indexRows(); }
       if (data.status) app.status = data.status;
       Object.assign(app, { settings: data.settings, update: data.update, revision: data.revision, dump: data.dump || {}, configs: data.configs || {}, windowActive: data.window_active !== false });
       app.startupState = data.startup || { state: 'ready' };
@@ -1122,7 +1132,7 @@ async function poll(force = false) {
       if (changed && app.page === 'flags') app.rowsPending = true;
       const editing = content.contains(document.activeElement) && document.activeElement.matches('input[data-value],select[data-value],select[data-type]');
       if (app.ready && app.rowsPending && app.page === 'flags' && !editing) { renderRows(); renderCatalog(); app.rowsPending = false; }
-      else if (app.ready && app.page === 'flags' && app.filter !== 'all' && previousStatus !== JSON.stringify(app.status.flags) && !content.contains(document.activeElement)) renderRows();
+      else if (checkStatus && previousStatus !== JSON.stringify(app.status.flags) && !content.contains(document.activeElement)) renderRows();
       if (app.ready && presetsChanged && ['presets', 'scc'].includes(app.page)) await refreshPresets();
       if (app.ready && presetsChanged && app.page === 'community') await refreshCommunity();
       updateStatus();
